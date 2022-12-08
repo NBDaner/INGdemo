@@ -40,9 +40,11 @@ namespace INGdemo.Models
     {
         public static string Algorithm_SBC = "SBC";
         public static string Algorithm_ADPCM = "ADPCM";
+        public static string Algorithm_LC3 = "LC3";
         public static byte AUDIO_CODEC_MODE = 2; //default
         readonly public static byte AUDIO_CODEC_ADPCM = 1;
         readonly public static byte AUDIO_CODEC_SBC = 2;
+        readonly public static byte AUDIO_CODEC_LC3 = 3;
     }
 
     interface ISpeechRecognition
@@ -202,7 +204,7 @@ namespace INGdemo.Models
         }
     }
 
-    class GoogleRecognizer : ISpeechRecognition   //谷歌AI语音识别
+    class GoogleRecognizer : ISpeechRecognition 
     {
 
         string Lang;
@@ -468,7 +470,6 @@ namespace INGdemo.Models
 
             ISpeechRecognition engine;
 
-            //判断AI语音识别引擎选择
             switch (EnginePicker.SelectedIndex)
             {
                 case 1:
@@ -478,7 +479,7 @@ namespace INGdemo.Models
                     engine = new GoogleRecognizer("en-US");
                     break;
                 default:
-                    engine = new NullRecognizer();
+                    engine = new NullRecognizer(); //default
                     break;
             }
 
@@ -487,9 +488,9 @@ namespace INGdemo.Models
             try
             {
                 string s = await engine.Recognize(samples);
-                STTResult.Text = s;  //语音转文字，并输入到最下方的文本框
+                STTResult.Text = s;
             }
-            //catch捕捉try抛出的错误
+
             catch (Exception ex)
             {
                 STTResult.Text = "error: " + ex.Message;
@@ -498,12 +499,9 @@ namespace INGdemo.Models
 
         async private void BtnTalk_Pressed(object sender, EventArgs e)
         {
-            //按下麦克风采集键
-
             int samplingRate = int.Parse(SamplingRatePicker.SelectedItem.ToString());
-            //识别音频编解码算法
             string audioCodec = AlgorithmPicker.SelectedItem.ToString();
-            //选择解码器
+
             switch(AlgorithmRecognitionSettings.AUDIO_CODEC_MODE)
             {
                 case 1:
@@ -575,6 +573,9 @@ namespace INGdemo.Models
             }
             else if (sbc_Decoder != null && AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_SBC)
             {
+                System.Diagnostics.Debug.WriteLine("SBC_Decoder");
+        
+                System.Diagnostics.Debug.WriteLine("e.Characteristic.Value[0] = {0}  LENGTH={1}",e.Characteristic.Value[0],e.Characteristic.Value.Length);
                 sbc_Decoder.Decode(e.Characteristic.Value);
             }
             

@@ -36,7 +36,7 @@ namespace INGdemo.Lib
             Readindex = 0;
             WriteIndex = 0;
 
-            //frame结构体对象初始化
+            //Structure object initialization
             sbc.priv.frame.scale_factor = new uint[2,8];
             sbc.priv.frame.sb_sample_f = new int[16,2,8];
             sbc.priv.frame.sb_sample = new int[16,2,8];
@@ -53,7 +53,7 @@ namespace INGdemo.Lib
             codesize = sbc_unpack_frame(data, sbc.priv.frame, input_len);
 
             if (!sbc.priv.init) {
-                //初始化解码器
+
                 sbc_decoder_init(sbc.priv.dec_state, sbc.priv.frame);
 
                 sbc.frequency = sbc.priv.frame.frequency;
@@ -67,7 +67,7 @@ namespace INGdemo.Lib
 
                 sbc.priv.frame.codesize = sbc_get_dec_codesize(sbc);
                 sbc.priv.frame.length = sbc_get_dec_frame_length(sbc);
-                //初始化帧计数
+
                 sbc.priv.frame.frame_count = 1;
                 sbc.priv.init = true;
 
@@ -76,7 +76,7 @@ namespace INGdemo.Lib
                 sbc.bitpool = sbc.priv.frame.bitpool;
             }            
 
-            //初始话witten
+
             if(!Convert.IsDBNull(written))
                 written = 0;
 
@@ -84,10 +84,6 @@ namespace INGdemo.Lib
                 return codesize;
 
             //polyphase synthesis
-            //多相分析参数表：
-            //@para priv.dec_state编码器的     priv.frame-sbc编码后的帧数据
-
-            //经过量化解析之后才会送到这个位置
             samples = sbc_synthesize_audio(sbc.priv.dec_state, sbc.priv.frame);
 
 
@@ -128,7 +124,6 @@ namespace INGdemo.Lib
             //set subbands
             state.subbands = frame.subbands;
 
-            //一共两个传输通道
             for (ch = 0; ch < 2; ch++)
                 for (i = 0; i < frame.subbands * 2; i++)
                     //ch_num * subbands_num * 2
@@ -149,16 +144,19 @@ namespace INGdemo.Lib
 
             int[,] bits = new int[2,8];
             uint[,] levels = new uint[2,8];
+            System.Diagnostics.Debug.WriteLine("parameter init ok!");
 
             if (len < 4)
                 return -1;
 
+            System.Diagnostics.Debug.WriteLine("data[0] = {0} Constants.SBC_SYNCWORD = {1}",data[0],Constants.SBC_SYNCWORD);
             if (data[0] != Constants.SBC_SYNCWORD)
                 return -2;
-
+            System.Diagnostics.Debug.WriteLine("2");
             frame.frequency = (byte)((data[1] >> 6) & 0x03);
-
+            System.Diagnostics.Debug.WriteLine("3");
             frame.block_mode = (byte)((data[1] >> 4) & 0x03);
+            System.Diagnostics.Debug.WriteLine("4");
             switch (frame.block_mode) {
             case Constants.SBC_BLK_4:
                 frame.blocks = 4;
@@ -173,6 +171,8 @@ namespace INGdemo.Lib
                 frame.blocks = 16;
                 break;
             }
+
+            System.Diagnostics.Debug.WriteLine("1");
 
             frame.mode = (Channels)((data[1] >> 2) & 0x03); //可能存在问题
             switch (frame.mode) {
@@ -244,7 +244,9 @@ namespace INGdemo.Lib
             if (data[3] != exp.sbc_crc8(crc_header, crc_pos))
                 return -3;
 
+            System.Diagnostics.Debug.WriteLine("sbc_calculate_bits begin!");
             sbc_calculate_bits(frame, bits);
+            System.Diagnostics.Debug.WriteLine("sbc_calculate_bits end!");
 
             for (ch = 0; ch < frame.channels; ch++) {
                 for (sb = 0; sb < frame.subbands; sb++)
@@ -292,9 +294,9 @@ namespace INGdemo.Lib
 
             if ((consumed & 0x7) != 0)
                 consumed += 8 - (consumed & 0x7);
-
+            System.Diagnostics.Debug.WriteLine("return!");
             return consumed >> 3;            
-
+            
         
         }
 
@@ -522,10 +524,10 @@ namespace INGdemo.Lib
             ret = 4 + (4 * subbands * channels) / 8;
             /* This term is not always evenly divide so we round it up */
             if (channels == 1 || sbc.mode == Constants.SBC_MODE_DUAL_CHANNEL)
-                //如果是MONO或者DUAL_CHANNEL
+                //MONO or DUAL_CHANNEL
                 ret += ((blocks * channels * bitpool) + 7) / 8;
             else
-                //如果是STEREO或者JOINT STEREO
+                //STEREO or JOINT STEREO
                 ret += (((joint == 0 ?0 : subbands) + blocks * bitpool) + 7) / 8;
 
             return (ushort)ret;
@@ -536,13 +538,11 @@ namespace INGdemo.Lib
         {
             System.Diagnostics.Debug.WriteLine("sbc_get_dec_frame_length()!");
             ushort subbands, channels, blocks;
-            //若未初始化
             if (!sbc.priv.init) {
                 subbands = (ushort)(sbc.subbands == Constants.SBC_SB_8 ? 8 : 4);
                 blocks = (ushort)(4 + (sbc.blocks * 4));
                 channels = (ushort)(sbc.mode == Constants.SBC_MODE_MONO ? 1 : 2);
             } else {
-                //已完成初始化
                 subbands = sbc.priv.frame.subbands;
                 blocks = sbc.priv.frame.blocks;
                 channels = sbc.priv.frame.channels;
@@ -798,6 +798,7 @@ namespace INGdemo.Lib
         public void Decode(byte data)
         {
             inputStream[Readindex++] = data;
+            System.Diagnostics.Debug.WriteLine("data[0] = {0}",data);
             if  (Readindex >= inputSize)
             {
                 Readindex = 0;
