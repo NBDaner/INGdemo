@@ -110,7 +110,7 @@ namespace INGdemo.Lib
             if(!Convert.IsDBNull(written))
                 written = samples * sbc.priv.frame.channels * 2;
     
-
+            System.Diagnostics.Debug.WriteLine("decode is finished!");
             return codesize;
         }
 
