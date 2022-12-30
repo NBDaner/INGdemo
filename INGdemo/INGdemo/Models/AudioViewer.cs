@@ -41,7 +41,7 @@ namespace INGdemo.Models
         public static string Algorithm_SBC = "SBC";
         public static string Algorithm_ADPCM = "ADPCM";
         public static string Algorithm_LC3 = "LC3";
-        public static byte AUDIO_CODEC_MODE = 2; //default
+        public static byte AUDIO_CODEC_MODE = 1; //default
         readonly public static byte AUDIO_CODEC_ADPCM = 1;
         readonly public static byte AUDIO_CODEC_SBC = 2;
         readonly public static byte AUDIO_CODEC_LC3 = 3;
@@ -378,25 +378,26 @@ namespace INGdemo.Models
             BtnTalk.Pressed += BtnTalk_Pressed;
             BtnTalk.Released += BtnTalk_Released;
 
-            //语音识别功能选择区
             EnginePicker = new Picker { Title = "Select" };
             EnginePicker.Items.Add("(Off)");            
             EnginePicker.Items.Add("Google (普通话)");
             EnginePicker.Items.Add("Google (English)");
             //EnginePicker.Items.Add("Tencent AI Open Platform");
 
-            //算法模式选择区
             AlgorithmPicker = new Picker { Title = "Select" };
             AlgorithmPicker.Items.Add("ADPCM");
             AlgorithmPicker.Items.Add("SBC");
+            AlgorithmPicker.Items.Add("LC3");
             AlgorithmPicker.SelectedIndex = 1;
             AlgorithmPicker.SelectedIndexChanged += AlgorithmPicker_SelectedIndexChanged;
 
             SamplingRatePicker = new Picker { Title = "Select" };
-            SamplingRatePicker.Items.Add("8000");
+            SamplingRatePicker.Items.Add("8000");   // for telephone
             SamplingRatePicker.Items.Add("16000");
-            SamplingRatePicker.Items.Add("24000");
-            SamplingRatePicker.Items.Add("32000");
+            SamplingRatePicker.Items.Add("22050");  // for FM
+            SamplingRatePicker.Items.Add("24000");  // for FM
+            SamplingRatePicker.Items.Add("44100");  // CD or MPEG-1_Audio
+            SamplingRatePicker.Items.Add("48000");  // tv dvd moive
             SamplingRatePicker.SelectedIndex = 1;
             //selectIndex属性值发生改变事件
             SamplingRatePicker.SelectedIndexChanged += SamplingRatePicker_SelectedIndexChanged;
@@ -624,19 +625,24 @@ namespace INGdemo.Models
         private void Reset()
         {
             //此种方法成功输出
-            System.Diagnostics.Debug.WriteLine("reset()!");
             AllSamples = new List<short>();
-            if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_SBC)
+            if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_ADPCM)
             {
+                System.Diagnostics.Debug.WriteLine("RESET FOR AUDIO_CODEC_ADPCM.");
+                Decoder = new ADPCMDecoder(32000 / 10);
+                Player = DependencyService.Get<IPCMAudio>();
+                Decoder.PCMOutput += Decoder_PCMOutput;
+            }
+            else if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_SBC)
+            {
+                System.Diagnostics.Debug.WriteLine("RESET FOR AUDIO_CODEC_SBC.");
                 sbc_Decoder = new SBCDecoder();
                 Player = DependencyService.Get<IPCMAudio>();
                 sbc_Decoder.SBCOutput += Decoder_SBCOutput;
             }
-            else if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_ADPCM)
+            else if(AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_LC3)
             {
-                Decoder = new ADPCMDecoder(32000 / 10);
-                Player = DependencyService.Get<IPCMAudio>();
-                Decoder.PCMOutput += Decoder_PCMOutput;
+                System.Diagnostics.Debug.WriteLine("RESET FOR AUDIO_CODEC_LC3.");
             }
         }
 
