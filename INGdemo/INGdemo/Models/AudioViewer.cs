@@ -626,12 +626,13 @@ namespace INGdemo.Models
         {
             //此种方法成功输出
             AllSamples = new List<short>();
+
             if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_ADPCM)
             {
                 System.Diagnostics.Debug.WriteLine("RESET FOR AUDIO_CODEC_ADPCM.");
                 Decoder = new ADPCMDecoder(32000 / 10);
                 Player = DependencyService.Get<IPCMAudio>();
-                Decoder.PCMOutput += Decoder_PCMOutput;
+                Decoder.PCMOutput += Decoder_PCMOutput; //添加函数注册代码
             }
             else if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_SBC)
             {
