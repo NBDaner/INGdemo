@@ -1,3 +1,4 @@
+#define __BIG_ENDIAN__
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -41,6 +42,14 @@ namespace INGdemo.Lib
         SBC_DECODER_ERROR_INVALID_CTRL_CMD,         /**< invalid ctrl cmd      */
         SBC_DECODER_ERROR_INVALID_CTRL_ARG,         /**< invalid ctrl arg      */
         SBC_DECODER_ERROR_OK = 0,                   /**< no error              */
+    }
+
+    public enum sbc_dec_ctrl_cmd
+    {
+        SBC_DECODER_CTRL_CMD_GET_OUTPUT_STEREO_FLAG,//0:NO, 1:YES
+        SBC_DECODER_CTRL_CMD_SET_OUTPUT_STEREO_FLAG,
+        SBC_DECODER_CTRL_CMD_GET_OUTPUT_PCM_WIDTH,  //can be 16, 24, 32 etc.,
+        SBC_DECODER_CTRL_CMD_SET_OUTPUT_PCM_WIDTH,
     }
 
     public struct sbc_dec_info
