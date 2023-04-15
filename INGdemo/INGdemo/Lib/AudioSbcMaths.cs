@@ -149,7 +149,7 @@ namespace INGdemo.Lib
 
                 for(blk = 0; blk < sbc.frame.blocks; blk++)
                 {
-                    //int* pcm = &sbc.pcm_sample[ch][blk * 4];
+                    //int* pcm = &sbc.pcm_sample[ch,blk * 4];
                     int[] pcm = new int[4];
                     Array.Copy(sbc.pcm_sample, ch * sbc.frame.blocks + blk * 4, pcm, 0, 4);
 
@@ -254,7 +254,7 @@ namespace INGdemo.Lib
 
                 for(blk = 0; blk < sbc.frame.blocks; blk++)
                 {
-                    // int* pcm = &sbc.pcm_sample[ch][blk * 8];
+                    // int* pcm = &sbc.pcm_sample[ch,blk * 8];
                     int[] pcm = new int[8];
                     Array.Copy(sbc.pcm_sample, ch * sbc.frame.blocks + blk * 8, pcm, 0, 4);
 
@@ -497,6 +497,9 @@ namespace INGdemo.Lib
                 }
             }
 
+            //目前不确定放在这儿是否靠谱
+            int pcm_index = 0;
+
             for(blk = 0; blk < frame.blocks; blk++)
             {
                 for(ch = 0; ch < sbc.num_channels; ch++)
@@ -504,12 +507,13 @@ namespace INGdemo.Lib
                     // sbyte*   bits   = frame.bits[ch];
                     // byte*  sf     = (byte*)frame.scale_factor[ch];
                     // uint* levels = (uint*)frame.mem[ch];
-                    // int*  pcm    = &sbc.pcm_sample[ch][blk * frame.subbands];
+                    // int*  pcm    = &sbc.pcm_sample[ch,blk * frame.subbands];
                     sbyte[] bits = new sbyte[8];
                     byte[] sf = new byte[8];
                     uint[] levels = new uint[8];
                     int[] pcm = new int[frame.subbands];
-                    Array.Copy(frame.bits, ch*8, bits, 0, 8);
+
+                    
                     Array.Copy(frame.scale_factor, ch*8, sf, 0, 8);
                     Array.Copy(frame.mem, ch*8, levels, 0, 8);
                     Array.Copy(sbc.pcm_sample, ch*frame.blocks*frame.subbands + blk * frame.subbands, pcm, 0, frame.subbands);
@@ -533,15 +537,15 @@ namespace INGdemo.Lib
 
                             #if SBC_DECODER_BITS_EXTEND
                             long t = value;
-                            *pcm++ = ((((t << 1) | 1) << (1 + sf[sb])) + (levels[sb] >> 1)) / levels[sb] - (1 << (1 + sf[sb]));       
+                            pcm[pcm_index++] = (int)(((((t << 1) | 1) << (1 + sf[sb])) + (levels[sb] >> 1)) / levels[sb] - (1 << (1 + sf[sb])));       
                             #else
-                            *pcm++ = ((((value << 1) | 1) << sf[sb]) + (levels[sb] >> 1)) / levels[sb] - (1 << sf[sb]);
+                            pcm[pcm_index++] = ((((value << 1) | 1) << sf[sb]) + (levels[sb] >> 1)) / levels[sb] - (1 << sf[sb]);
                             #endif
 
                         }
                         else
                         {
-                            *pcm++ = 0;
+                            pcm[pcm_index++] = 0;
                         }
                     }
                 }
@@ -552,8 +556,13 @@ namespace INGdemo.Lib
             {
                 int  idx, t0, t1;
 
-                int* pcm0 = sbc.pcm_sample[0];
-                int* pcm1 = sbc.pcm_sample[1];
+                // int* pcm0 = sbc.pcm_sample[0];
+                // int* pcm1 = sbc.pcm_sample[1];
+                int[] pcm0 = new int[128];
+                int[] pcm1 = new int[128];
+                Array.Copy(sbc.pcm_sample,0,pcm0,0,128);
+                Array.Copy(sbc.pcm_sample,128,pcm1,0,128);
+
 
                 for(blk = 0; blk < frame.blocks; blk++)
                 {
@@ -575,21 +584,76 @@ namespace INGdemo.Lib
                 }
             }
 
-            /* padding */
+            /* padding 数据填充*/
             consumed = (int)(((consumed + 7) & 0xFFFFFFF8) >> 3);
 
 
-                sbc_decoder_subband_synthesis_filter(sbc);
+            sbc_decoder_subband_synthesis_filter(sbc);
 
-                if(sbc.num_channels == 2)
+            if(sbc.num_channels == 2)
+            {
+                switch(sbc.output_pcm_width)
+                {
+                case 16:
+                    {
+                        int  i;
+                        // int* src = (int*)sbc.pcm_sample[1];
+                        // short* dst = (short*)sbc.pcm_sample + 1;
+                        int[] src = new int[128];
+                        short[] dst = new short[128];
+                        Array.Copy(sbc.pcm_sample,0,src,0,128);
+                        Array.Copy(sbc.pcm_sample,128,dst,0,128);
+
+                        for(i = 0; i < sbc.pcm_length; i++)
+                        {
+                            *dst = *src++;
+                            dst += 2;
+                        }
+                    }
+                    break;
+                case 24:
+                    {
+                        int  i;
+                        // short* src16 = (short*)sbc.pcm_sample + sbc.pcm_length * 2 - 1;
+                        // int* src32 = (int*)sbc.pcm_sample[1];
+                        // short* dst16 = (short*)sbc.pcm_sample + 1;
+                        // int* dst32 = (int*)sbc.pcm_sample + sbc.pcm_length * 2 - 1;
+                        short[] src16 = new short[];
+                        int[] src32 = new int[];
+                        short[] dst16 = new short[];
+                        int[] dst32 = new int[];
+
+
+                        for(i = 0; i < sbc.pcm_length; i++)
+                        {
+                            *dst16 = *src32++;
+                            dst16 += 2;
+                        }
+
+                        for(i = 0; i < sbc.pcm_length; i++)
+                        {
+                            *dst32-- = *src16-- << 8;
+                            *dst32-- = *src16-- << 8;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+                }
+            }
+            else
+            {
+                if(sbc.output_stereo_flag != 0)
                 {
                     switch(sbc.output_pcm_width)
                     {
                     case 16:
                         {
                             int  i;
-                            int* src = (int*)sbc.pcm_sample[1];
-                            int16_t* dst = (int16_t*)sbc.pcm_sample + 1;
+                            // int* src = (int*)sbc.pcm_sample[0];
+                            // short* dst = (short*)sbc.pcm_sample + 1;
+                            int[] src = new int[];
+                            short[] dst = new short[];
 
                             for(i = 0; i < sbc.pcm_length; i++)
                             {
@@ -600,22 +664,49 @@ namespace INGdemo.Lib
                         break;
                     case 24:
                         {
-                            int  i;
-                            int16_t* src16 = (int16_t*)sbc.pcm_sample + sbc.pcm_length * 2 - 1;
-                            int* src32 = (int*)sbc.pcm_sample[1];
-                            int16_t* dst16 = (int16_t*)sbc.pcm_sample + 1;
-                            int* dst32 = (int*)sbc.pcm_sample + sbc.pcm_length * 2 - 1;
+                            int  i, s;
+                            int* src = (int*)&sbc.pcm_sample[0,sbc.pcm_length - 1];
+                            int* dst = (int*)&sbc.pcm_sample[0,sbc.pcm_length * 2 - 1];
 
                             for(i = 0; i < sbc.pcm_length; i++)
                             {
-                                *dst16 = *src32++;
-                                dst16 += 2;
+                                s = *src-- << 8;
+                                *dst-- = s;
+                                *dst-- = s;
                             }
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+
+                    sbc.num_channels = 2;
+                }
+                else
+                {
+                    switch(sbc.output_pcm_width)
+                    {
+                    case 16:
+                        {
+                            int  i;
+                            int* src = (int*)sbc.pcm_sample[0];
+                            short* dst = (short*)sbc.pcm_sample + 0;
 
                             for(i = 0; i < sbc.pcm_length; i++)
                             {
-                                *dst32-- = *src16-- << 8;
-                                *dst32-- = *src16-- << 8;
+                                *dst++ = *src++;
+                            }
+                        }
+                        break;
+                    case 24:
+                        {
+                            int  i;
+                            int* src = (int*)sbc.pcm_sample[0];
+                            int* dst = (int*)sbc.pcm_sample[0];
+
+                            for(i = 0; i < sbc.pcm_length; i++)
+                            {
+                                *dst++ = *src++ << 8;
                             }
                         }
                         break;
@@ -623,78 +714,7 @@ namespace INGdemo.Lib
                         break;
                     }
                 }
-                else
-                {
-                    if(sbc.output_stereo_flag)
-                    {
-                        switch(sbc.output_pcm_width)
-                        {
-                        case 16:
-                            {
-                                int  i;
-                                int* src = (int*)sbc.pcm_sample[0];
-                                int16_t* dst = (int16_t*)sbc.pcm_sample + 1;
-
-                                for(i = 0; i < sbc.pcm_length; i++)
-                                {
-                                    *dst = *src++;
-                                    dst += 2;
-                                }
-                            }
-                            break;
-                        case 24:
-                            {
-                                int  i, s;
-                                int* src = (int*)&sbc.pcm_sample[0][sbc.pcm_length - 1];
-                                int* dst = (int*)&sbc.pcm_sample[0][sbc.pcm_length * 2 - 1];
-
-                                for(i = 0; i < sbc.pcm_length; i++)
-                                {
-                                    s = *src-- << 8;
-                                    *dst-- = s;
-                                    *dst-- = s;
-                                }
-                            }
-                            break;
-                        default:
-                            break;
-                        }
-
-                        sbc.num_channels = 2;
-                    }
-                    else
-                    {
-                        switch(sbc.output_pcm_width)
-                        {
-                        case 16:
-                            {
-                                int  i;
-                                int* src = (int*)sbc.pcm_sample[0];
-                                int16_t* dst = (int16_t*)sbc.pcm_sample + 0;
-
-                                for(i = 0; i < sbc.pcm_length; i++)
-                                {
-                                    *dst++ = *src++;
-                                }
-                            }
-                            break;
-                        case 24:
-                            {
-                                int  i;
-                                int* src = (int*)sbc.pcm_sample[0];
-                                int* dst = (int*)sbc.pcm_sample[0];
-
-                                for(i = 0; i < sbc.pcm_length; i++)
-                                {
-                                    *dst++ = *src++ << 8;
-                                }
-                            }
-                            break;
-                        default:
-                            break;
-                        }
-                    }
-                }
+            }
 
             return consumed;
         }
@@ -749,31 +769,35 @@ namespace INGdemo.Lib
 
         public void sbc_common_bit_allocation(sbc_frame_info sbc)
         {
-            int32_t  ch;
-            int32_t  sb;
-            int32_t  slicecount;
-            int32_t  bitcount;
-            int32_t  bitslice;
-            int32_t  max_bitneed;
-            int32_t  loudness;
+            int  ch;
+            int  sb;
+            int  slicecount;
+            int  bitcount;
+            int  bitslice;
+            int  max_bitneed;
+            int  loudness;
 
-            int8_t*  sf;
-            int8_t*  bits;
-            int32_t* bitneed;
+            sbyte[] sf = new sbyte[8];
+            sbyte[] bits = new sbyte[8];
+            int[] bitneed = new int[8];
 
-            if((sbc->channel_mode == SBC_CHANNEL_MODE_MONO) || (sbc->channel_mode == SBC_CHANNEL_MODE_DUAL_CHANNEL))
+            if((sbc.channel_mode == Constants.SBC_CHANNEL_MODE_MONO) || (sbc.channel_mode == Constants.SBC_CHANNEL_MODE_DUAL_CHANNEL))
             {
-                for(ch = 0; ch < sbc->channel_mode + 1; ch++)
+                for(ch = 0; ch < sbc.channel_mode + 1; ch++)
                 {
-                    sf      = sbc->scale_factor[ch];
-                    bits    = sbc->bits[ch];
-                    bitneed = sbc->mem[ch];
+                    // sf      = sbc.scale_factor[ch];
+                    // bits    = sbc.bits[ch];
+                    // bitneed = sbc.mem[ch];
+                    Array.Copy(sbc.scale_factor,0,sf,0,8);
+                    Array.Copy(sbc.bits,0,bits,0,8);
+                    Array.Copy(sbc.mem,0,bitneed,0,8);
+
 
                     max_bitneed = 0;
             
-                    if(sbc->allocation_method == SBC_ALLOCATION_METHOD_SNR)
+                    if(sbc.allocation_method == Constants.SBC_ALLOCATION_METHOD_SNR)
                     {
-                        for(sb = 0; sb < sbc->subbands; sb++)
+                        for(sb = 0; sb < sbc.subbands; sb++)
                         {
                             bitneed[sb] = sf[sb];
                             if(bitneed[sb] > max_bitneed)
@@ -784,9 +808,9 @@ namespace INGdemo.Lib
                     }
                     else
                     {
-                        uint8_t sri = sbc->sample_rate_index;
+                        byte sri = (byte)sbc.sample_rate_index;
 
-                        for(sb = 0; sb<sbc->subbands; sb++)
+                        for(sb = 0; sb<sbc.subbands; sb++)
                         {
                             if(sf[sb] == 0)
                             {
@@ -794,13 +818,13 @@ namespace INGdemo.Lib
                             }
                             else
                             {
-                                if(sbc->subbands == 4)
+                                if(sbc.subbands == 4)
                                 {
-                                    loudness = sf[sb] - SBC_COMMON_OFFSET4[sri][sb];
+                                    loudness = sf[sb] - Tables.SBC_COMMON_OFFSET4[sri,sb];
                                 }
                                 else
                                 {
-                                    loudness = sf[sb] - SBC_COMMON_OFFSET8[sri][sb];
+                                    loudness = sf[sb] - Tables.SBC_COMMON_OFFSET8[sri,sb];
                                 }
 
                                 if(loudness > 0)
@@ -830,7 +854,7 @@ namespace INGdemo.Lib
                         bitcount += slicecount;
                         slicecount = 0;
 
-                        for(sb = 0; sb < sbc->subbands; sb++)
+                        for(sb = 0; sb < sbc.subbands; sb++)
                         {
                             if((bitneed[sb] > bitslice + 1) && (bitneed[sb] < bitslice + 16))
                             {
@@ -841,15 +865,15 @@ namespace INGdemo.Lib
                                 slicecount += 2;
                             }
                         }
-                    }while(bitcount + slicecount < sbc->bitpool);
+                    }while(bitcount + slicecount < sbc.bitpool);
 
-                    if(bitcount + slicecount == sbc->bitpool)
+                    if(bitcount + slicecount == sbc.bitpool)
                     {
                         bitcount += slicecount;
                         bitslice--;
                     }
 
-                    for(sb = 0; sb < sbc->subbands; sb++)
+                    for(sb = 0; sb < sbc.subbands; sb++)
                     {
                         if(bitneed[sb] < bitslice + 2)
                         {
@@ -857,7 +881,7 @@ namespace INGdemo.Lib
                         }
                         else
                         {
-                            bits[sb] = bitneed[sb] - bitslice;
+                            bits[sb] = (sbyte)(bitneed[sb] - bitslice);
                             if(bits[sb] > 16)
                             {
                                 bits[sb] = 16;
@@ -865,21 +889,21 @@ namespace INGdemo.Lib
                         }
                     }
 
-                    for(sb = 0; bitcount < sbc->bitpool && sb < sbc->subbands; sb++)
+                    for(sb = 0; bitcount < sbc.bitpool && sb < sbc.subbands; sb++)
                     {
                         if((bits[sb] >= 2) && (bits[sb] < 16))
                         {
                             bits[sb]++;
                             bitcount++;
                         }
-                        else if((bitneed[sb] == bitslice+1) && (sbc->bitpool > bitcount + 1))
+                        else if((bitneed[sb] == bitslice+1) && (sbc.bitpool > bitcount + 1))
                         {
                             bits[sb]  = 2;
                             bitcount += 2;
                         }
                     }
 
-                    for(sb = 0; bitcount < sbc->bitpool && sb < sbc->subbands; sb++)
+                    for(sb = 0; bitcount < sbc.bitpool && sb < sbc.subbands; sb++)
                     {
                         if(bits[sb] < 16)
                         {
@@ -889,17 +913,19 @@ namespace INGdemo.Lib
                     }
                 }
             }
-            else if((sbc->channel_mode == SBC_CHANNEL_MODE_STEREO) || (sbc->channel_mode == SBC_CHANNEL_MODE_JOINT_STEREO))
+            else if((sbc.channel_mode == Constants.SBC_CHANNEL_MODE_STEREO) || (sbc.channel_mode == Constants.SBC_CHANNEL_MODE_JOINT_STEREO))
             {
                 max_bitneed = 0;
-                if(sbc->allocation_method == SBC_ALLOCATION_METHOD_SNR)
+                if(sbc.allocation_method == Constants.SBC_ALLOCATION_METHOD_SNR)
                 {
                     for(ch = 0; ch < 2; ch++)
                     {
-                        sf      = sbc->scale_factor[ch];
-                        bitneed = sbc->mem[ch];
+                        // sf      = sbc.scale_factor[ch];
+                        // bitneed = sbc.mem[ch];
+                        Array.Copy(sbc.scale_factor,0,sf,0,8);
+                        Array.Copy(sbc.mem,0,bitneed,0,8);
 
-                        for(sb = 0; sb < sbc->subbands; sb++)
+                        for(sb = 0; sb < sbc.subbands; sb++)
                         {
                             bitneed[sb] = sf[sb];
 
@@ -912,14 +938,16 @@ namespace INGdemo.Lib
                 }
                 else
                 {
-                    uint8_t sri = sbc->sample_rate_index;
+                    byte sri = (byte)sbc.sample_rate_index;
 
                     for(ch = 0; ch < 2; ch++)
                     {
-                        sf      = sbc->scale_factor[ch];
-                        bitneed = sbc->mem[ch];
+                        // sf      = sbc.scale_factor[ch];
+                        // bitneed = sbc.mem[ch];
+                        Array.Copy(sbc.scale_factor,0,sf,0,8);
+                        Array.Copy(sbc.mem,0,bitneed,0,8);
 
-                        for(sb = 0; sb < sbc->subbands; sb++)
+                        for(sb = 0; sb < sbc.subbands; sb++)
                         {
                             if(sf[sb] == 0)
                             {
@@ -927,13 +955,13 @@ namespace INGdemo.Lib
                             }
                             else
                             {
-                                if(sbc->subbands == 4)
+                                if(sbc.subbands == 4)
                                 {
-                                    loudness = sf[sb] - SBC_COMMON_OFFSET4[sri][sb];
+                                    loudness = sf[sb] - Tables.SBC_COMMON_OFFSET4[sri,sb];
                                 }
                                 else
                                 {
-                                    loudness = sf[sb] - SBC_COMMON_OFFSET8[sri][sb];
+                                    loudness = sf[sb] - Tables.SBC_COMMON_OFFSET8[sri,sb];
                                 }
 
                                 if(loudness > 0)
@@ -966,9 +994,10 @@ namespace INGdemo.Lib
 
                     for(ch = 0; ch < 2; ch++)
                     {
-                        bitneed = sbc->mem[ch];
+                        // bitneed = sbc.mem[ch];
+                        Array.Copy(sbc.mem,0,bitneed,0,8);
 
-                        for(sb = 0; sb < sbc->subbands; sb++)
+                        for(sb = 0; sb < sbc.subbands; sb++)
                         {
                             if((bitneed[sb] > bitslice + 1) && (bitneed[sb] < bitslice + 16))
                             {
@@ -980,9 +1009,9 @@ namespace INGdemo.Lib
                             }
                         }
                     }
-                }while(bitcount + slicecount < sbc->bitpool);
+                }while(bitcount + slicecount < sbc.bitpool);
 
-                if(bitcount + slicecount == sbc->bitpool)
+                if(bitcount + slicecount == sbc.bitpool)
                 {
                     bitcount += slicecount;
                     bitslice--;
@@ -990,10 +1019,12 @@ namespace INGdemo.Lib
 
                 for(ch = 0; ch < 2; ch++)
                 {
-                    bits    = sbc->bits[ch];
-                    bitneed = sbc->mem[ch];
+                    // bits    = sbc.bits[ch];
+                    // bitneed = sbc.mem[ch];
+                    Array.Copy(sbc.bits,0,bits,0,8);
+                    Array.Copy(sbc.mem,0,bitneed,0,8);
 
-                    for(sb = 0; sb < sbc->subbands; sb++)
+                    for(sb = 0; sb < sbc.subbands; sb++)
                     {
                         if(bitneed[sb] < bitslice + 2)
                         {
@@ -1001,7 +1032,7 @@ namespace INGdemo.Lib
                         }
                         else
                         {
-                            bits[sb] = bitneed[sb] - bitslice;
+                            bits[sb] = (sbyte)(bitneed[sb] - bitslice);
                             if(bits[sb] > 16)
                             {
                                 bits[sb] = 16;
@@ -1012,42 +1043,46 @@ namespace INGdemo.Lib
 
                 sb = 0;
 
-                while(bitcount < sbc->bitpool)
+                while(bitcount < sbc.bitpool)
                 {
-                    bits    = sbc->bits[0];
-                    bitneed = sbc->mem[0];
+                    // bits    = sbc.bits[0];
+                    // bitneed = sbc.mem[0];
+                    Array.Copy(sbc.bits,0,bits,0,8);
+                    Array.Copy(sbc.mem,0,bitneed,0,8);
 
                     if((bits[sb] >= 2) && (bits[sb] < 16))
                     {
                         bits[sb]++;
                         bitcount++;
                     }
-                    else if((bitneed[sb] == bitslice + 1) && (sbc->bitpool > bitcount + 1))
+                    else if((bitneed[sb] == bitslice + 1) && (sbc.bitpool > bitcount + 1))
                     {
                         bits[sb]  = 2;
                         bitcount += 2;
                     }
 
-                    if(bitcount >= sbc->bitpool)
+                    if(bitcount >= sbc.bitpool)
                     {
                         break;
                     }
 
-                    bits    = sbc->bits[1];
-                    bitneed = sbc->mem[1];
+                    // bits    = sbc.bits[1];
+                    // bitneed = sbc.mem[1];
+                    Array.Copy(sbc.bits,0,bits,0,8);
+                    Array.Copy(sbc.mem,0,bitneed,0,8);
 
                     if((bits[sb] >= 2) && (bits[sb] < 16))
                     {
                         bits[sb]++;
                         bitcount++;
                     }
-                    else if((bitneed[sb] == bitslice + 1) && (sbc->bitpool > bitcount + 1))
+                    else if((bitneed[sb] == bitslice + 1) && (sbc.bitpool > bitcount + 1))
                     {
                         bits[sb]  = 2;
                         bitcount += 2;
                     }
 
-                    if(++sb >= sbc->subbands)
+                    if(++sb >= sbc.subbands)
                     {
                         break;
                     }
@@ -1055,21 +1090,23 @@ namespace INGdemo.Lib
 
                 sb = 0;
 
-                while(bitcount < sbc->bitpool)
+                while(bitcount < sbc.bitpool)
                 {
-                    bits = sbc->bits[0];
+                    // bits = sbc.bits[0];
+                    Array.Copy(sbc.bits,0,bits,0,8);
 
                     if(bits[sb] < 16)
                     {
                         bits[sb]++;
 
-                        if(++bitcount >= sbc->bitpool)
+                        if(++bitcount >= sbc.bitpool)
                         {
                             break;
                         }                
                     }            
 
-                    bits = sbc->bits[1];
+                    // bits = sbc.bits[1];
+                    Array.Copy(sbc.bits,0,bits,0,8);
 
                     if(bits[sb] < 16)
                     {
@@ -1077,14 +1114,12 @@ namespace INGdemo.Lib
                         bitcount++;
                     }
 
-                    if(++sb >= sbc->subbands)
+                    if(++sb >= sbc.subbands)
                     {
                         break;
                     }
                 }
             }
         }
-
-
     }      
 }

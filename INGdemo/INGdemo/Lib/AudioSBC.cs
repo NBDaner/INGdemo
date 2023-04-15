@@ -815,8 +815,7 @@ namespace INGdemo.Lib
         //与ADPCM解码不同
         //数据需要达到一定长度之后才能进行解码
         public void Decode(byte[] data)
-        {
-            
+        {     
             foreach(var x in data) Decode(x);
         }
      
