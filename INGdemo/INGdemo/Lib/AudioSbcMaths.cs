@@ -604,16 +604,23 @@ namespace INGdemo.Lib
                         Array.Copy(sbc.pcm_sample,0,src,0,128);
                         Array.Copy(sbc.pcm_sample,128,dst,0,128);
 
+                        int src_index = 0;
+                        int dst_index = 0;
+
                         for(i = 0; i < sbc.pcm_length; i++)
                         {
-                            *dst = *src++;
-                            dst += 2;
+                            // *dst = *src++;
+                            // dst += 2;
+                            dst[dst_index] = (short)(src[src_index++]);
+                            dst_index += 2;
                         }
                     }
                     break;
                 case 24:
                     {
                         int  i;
+                        // 这些指针指向数组的末尾，实际上可能不需要初始化这么多的数组来实现，
+                        // 所以总结一下每个函数的实现并核对一下
                         // short* src16 = (short*)sbc.pcm_sample + sbc.pcm_length * 2 - 1;
                         // int* src32 = (int*)sbc.pcm_sample[1];
                         // short* dst16 = (short*)sbc.pcm_sample + 1;
@@ -623,17 +630,29 @@ namespace INGdemo.Lib
                         short[] dst16 = new short[];
                         int[] dst32 = new int[];
 
+                        int src16_index = 0;
+                        int src32_index = 0;
+                        int dst16_index = 0;
+                        int dst32_index = 0;
+                    
+
 
                         for(i = 0; i < sbc.pcm_length; i++)
                         {
-                            *dst16 = *src32++;
-                            dst16 += 2;
+                            // *dst16 = *src32++;
+                            // dst16 += 2;
+                            dst16[dst16_index] = (short)src32[src32_index++];
+                            dst16_index += 2;
                         }
 
                         for(i = 0; i < sbc.pcm_length; i++)
                         {
-                            *dst32-- = *src16-- << 8;
-                            *dst32-- = *src16-- << 8;
+                            // *dst32-- = *src16-- << 8;
+                            // *dst32-- = *src16-- << 8;
+                            dst32[dst32_index--] =  src16[src16_index--] << 8;
+                            dst32[dst32_index--] =  src16[src16_index--] << 8;
+
+
                         }
                     }
                     break;
@@ -655,10 +674,15 @@ namespace INGdemo.Lib
                             int[] src = new int[];
                             short[] dst = new short[];
 
+                            int src_index = 0;
+                            int dst_index = 0;
+
                             for(i = 0; i < sbc.pcm_length; i++)
                             {
-                                *dst = *src++;
-                                dst += 2;
+                                // *dst = *src++;
+                                // dst += 2;
+                                dst[dst_index] = (short)(src[src_index++]);
+                                dst_index += 2;
                             }
                         }
                         break;
