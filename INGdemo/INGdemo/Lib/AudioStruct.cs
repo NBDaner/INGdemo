@@ -20,8 +20,6 @@ namespace INGdemo.Lib
         SNR		= Constants.SBC_AM_SNR
     }
 
-
-
     public struct sbc_frame {
         public byte frequency;
         public byte block_mode;
@@ -69,13 +67,9 @@ namespace INGdemo.Lib
         public sbc_decoder_state dec_state;
     }
 
- 
-
-
     public struct sbc_struct
     {
         public ulong flags;
-
         public byte frequency;
         public byte blocks;
         public byte subbands;
@@ -83,7 +77,6 @@ namespace INGdemo.Lib
         public byte allocation;
         public byte bitpool;
         public byte endian;
-
         public sbc_priv priv;     
     }
 

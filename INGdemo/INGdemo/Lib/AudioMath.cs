@@ -5,7 +5,7 @@ using System.Text;
 
 namespace INGdemo.Lib
 {
-    static class Constants1
+    static class Constants
     {
         /* sampling frequency */
         public const byte SBC_FREQ_16000 = 0x00;
@@ -51,7 +51,7 @@ namespace INGdemo.Lib
         public const byte SBC_SYNCWORD = 0x9C;
     } 
 
-    public class exp1
+    public class exp
     {
         static public int CI(uint i)
         {

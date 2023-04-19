@@ -504,7 +504,7 @@ namespace INGdemo.Lib
             }
 
         }
-        
+         
         ushort sbc_get_dec_codesize(sbc_struct sbc)
         {
             System.Diagnostics.Debug.WriteLine("sbc_get_dec_codesize()!");
