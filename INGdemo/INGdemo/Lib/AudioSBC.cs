@@ -6,7 +6,14 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace INGdemo.Lib
-{     
+{   
+    public interface ISBCAudio
+    {
+        bool Write1(byte[] samples);
+        void Play1(int samplingRate);
+        void Stop1();
+    }
+
     public class SBCDecoder
     {
         //Queue<byte> inputStream = new Queue<byte>();  //初始化输入队列
@@ -149,14 +156,14 @@ namespace INGdemo.Lib
             if (len < 4)
                 return -1;
 
-            System.Diagnostics.Debug.WriteLine("data[0] = {0} Constants.SBC_SYNCWORD = {1}",data[0],Constants.SBC_SYNCWORD);
+            // System.Diagnostics.Debug.WriteLine("data[0] = {0} Constants.SBC_SYNCWORD = {1}",data[0],Constants.SBC_SYNCWORD);
             if (data[0] != Constants.SBC_SYNCWORD)
                 return -2;
-            System.Diagnostics.Debug.WriteLine("2");
+            // System.Diagnostics.Debug.WriteLine("2");
             frame.frequency = (byte)((data[1] >> 6) & 0x03);
-            System.Diagnostics.Debug.WriteLine("3");
+            // System.Diagnostics.Debug.WriteLine("3");
             frame.block_mode = (byte)((data[1] >> 4) & 0x03);
-            System.Diagnostics.Debug.WriteLine("4");
+            // System.Diagnostics.Debug.WriteLine("4");
             switch (frame.block_mode) {
             case Constants.SBC_BLK_4:
                 frame.blocks = 4;
@@ -798,7 +805,7 @@ namespace INGdemo.Lib
         public void Decode(byte data)
         {
             inputStream[Readindex++] = data;
-            System.Diagnostics.Debug.WriteLine("data[0] = {0}",data);
+            // System.Diagnostics.Debug.WriteLine("data[0] = {0}",data);
             if  (Readindex >= inputSize)
             {
                 Readindex = 0;
