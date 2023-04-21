@@ -496,7 +496,6 @@ namespace INGdemo.Models
             }
         }
 
-
         private void PlayerWrite(short[] samples)
         {
             switch(AlgorithmRecognitionSettings.AUDIO_CODEC_MODE)
@@ -505,16 +504,17 @@ namespace INGdemo.Models
                     System.Diagnostics.Debug.WriteLine("[ERR]:No write function to match.");
                     break;
                 case 1:
+                    System.Diagnostics.Debug.WriteLine("[1]");
                     PlayerAdpcm.Write(samples);
                     break;
                 case 2:
-                    PlayerSbc.Write1((byte[])samples);
+                    System.Diagnostics.Debug.WriteLine("[2]");
+                    PlayerSbc.Write1(samples);
                     break;
                 default:break;
             }
         }
  
-
         async private void BtnTalk_Released(object sender, EventArgs e)
         {
             await charCtrl.WriteAsync(new byte[1] { CMD_MIC_CLOSE });
@@ -631,8 +631,7 @@ namespace INGdemo.Models
         
                 System.Diagnostics.Debug.WriteLine("e.Characteristic.Value[0] = {0}  LENGTH={1}",e.Characteristic.Value[0],e.Characteristic.Value.Length);
                 DecoderSbc.Decode(e.Characteristic.Value);
-            }
-            
+            }           
 
             Device.BeginInvokeOnMainThread(() =>
                 label.Text = Utils.ByteArrayToString(e.Characteristic.Value)
@@ -655,18 +654,6 @@ namespace INGdemo.Models
             AllSamples.AddRange(e);
         }
 
-        private void SbcDecoderOutput(object sender, byte[] e)
-        {
-            //单个数据类型转换
-            short[] se = new short[e.Length];
-            for (int i=0; i<e.Length; i++) 
-            {
-                se[i] = (short)(e[i]);
-            }
-            PlayerWrite(se);
-            AllSamples.AddRange(se);          
-        } 
-
         async protected override void OnDisappearing()
         {
             base.OnDisappearing();
@@ -682,13 +669,13 @@ namespace INGdemo.Models
             if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_SBC)
             {
                 DecoderSbc = new SBCDecoder();
-                PlayerAdpcm = DependencyService.Get<IPCMAudio>();
-                DecoderSbc.SBCOutput += SbcDecoderOutput;
+                PlayerSbc = DependencyService.Get<ISBCAudio>();
+                DecoderSbc.SBCOutput += Decoder_PCMOutput;
             }
             else if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_ADPCM)
             {
                 DecoderAdpcm = new ADPCMDecoder(32000 / 10);
-                PlayerSbc = DependencyService.Get<ISBCAudio>();
+                PlayerAdpcm = DependencyService.Get<IPCMAudio>();
                 DecoderAdpcm.PCMOutput += Decoder_PCMOutput;
             }
         }

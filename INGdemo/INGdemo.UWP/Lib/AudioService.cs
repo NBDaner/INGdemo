@@ -194,9 +194,9 @@ namespace INGdemo.UWP.Lib
             FrameCompleted++;
         }
 
-        unsafe private AudioFrame GenerateAudioData(byte[] samples)
+        unsafe private AudioFrame GenerateAudioData(Int16[] samples)
         {
-            uint bufferSize = (uint)samples.Length * sizeof(byte);
+            uint bufferSize = (uint)samples.Length * sizeof(Int16);
             AudioFrame frame = new Windows.Media.AudioFrame(bufferSize);
 
             using (AudioBuffer buffer = frame.LockBuffer(AudioBufferAccessMode.Write))
@@ -204,20 +204,20 @@ namespace INGdemo.UWP.Lib
             {
                 byte* dataInBytes;
                 uint capacityInBytes;
-                byte* dataIn;
+                Int16* dataIn;
 
                 ((IMemoryBufferByteAccess)reference).GetBuffer(out dataInBytes, out capacityInBytes);
 
                 // Cast to float since the data we are generating is float
-                dataIn = (byte*)dataInBytes;
+                dataIn = (Int16*)dataInBytes;
                 for (var i = 0; i < samples.Length; i++)
                     dataIn[i] = samples[i];
             }
 
             return frame;
         }
-
-        public bool Write1(byte[] samples)
+        
+        public bool Write1(Int16[] samples)
         {
             System.Diagnostics.Debug.WriteLine("Write1"); 
             if ((graph == null)) return true;

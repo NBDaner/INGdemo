@@ -9,7 +9,7 @@ namespace INGdemo.Lib
 {   
     public interface ISBCAudio
     {
-        bool Write1(byte[] samples);
+        bool Write1(short[] samples);
         void Play1(int samplingRate);
         void Stop1();
     }
@@ -22,7 +22,7 @@ namespace INGdemo.Lib
         private int Readindex;
         private int WriteIndex;
         private byte[] inputStream;
-        private byte[] outputStream;
+        private short[] outputStream;
         private int inp = 0;  //解码器输入数组位置指示器,初始化为0
         private int outp = 0;
         private int decoded;
@@ -34,12 +34,12 @@ namespace INGdemo.Lib
             Reset();
         }
 
-        public event EventHandler<byte []> SBCOutput;
+        public event EventHandler<short[]> SBCOutput;
 
         public void Reset()
         {
             inputStream = new byte[inputSize];
-            outputStream = new byte[outputSize];
+            outputStream = new short[outputSize];
             Readindex = 0;
             WriteIndex = 0;
 
@@ -53,7 +53,7 @@ namespace INGdemo.Lib
             sbc.priv.dec_state.V = new int[2,170];
             sbc.priv.dec_state.offset = new int[2,16];
         }
-        int sbc_decode(byte[] data, int input_len, byte[] output, int output_len, int written)
+        int sbc_decode(byte[] data, int input_len, short[] output, int output_len, int written)
         {
             System.Diagnostics.Debug.WriteLine("sbc_decode()!");
             int i, ch, codesize, samples;
@@ -104,11 +104,9 @@ namespace INGdemo.Lib
                     int index = (i * sbc.priv.frame.channels + ch) * 2;
 
                     if (sbc.endian == Constants.SBC_LE) {
-                        output[index] = (byte)(s & 0x00ff);
-                        output[index+1] = (byte)((s & 0xff00) >> 8);
+                        output[index] = s;
                     } else {
-                        output[index] = (byte)((s & 0xff00) >> 8);
-                        output[index+1] = (byte)(s & 0x00ff);
+                        output[index] = (short)(((s >> 8) & 0xff) | (s << 8));
                     }
                 }
             }
@@ -137,10 +135,8 @@ namespace INGdemo.Lib
                     state.offset[ch,i] = (10 * i + 10);
         }
 
-
         public int sbc_unpack_frame(byte[] data, sbc_frame frame, int len)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_unpack_frame()!");
             int consumed;
             byte[] crc_header = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             int crc_pos = 0;
@@ -151,7 +147,7 @@ namespace INGdemo.Lib
 
             int[,] bits = new int[2,8];
             uint[,] levels = new uint[2,8];
-            System.Diagnostics.Debug.WriteLine("parameter init ok!");
+
 
             if (len < 4)
                 return -1;
@@ -159,42 +155,39 @@ namespace INGdemo.Lib
             // System.Diagnostics.Debug.WriteLine("data[0] = {0} Constants.SBC_SYNCWORD = {1}",data[0],Constants.SBC_SYNCWORD);
             if (data[0] != Constants.SBC_SYNCWORD)
                 return -2;
-            // System.Diagnostics.Debug.WriteLine("2");
+
             frame.frequency = (byte)((data[1] >> 6) & 0x03);
-            // System.Diagnostics.Debug.WriteLine("3");
             frame.block_mode = (byte)((data[1] >> 4) & 0x03);
-            // System.Diagnostics.Debug.WriteLine("4");
-            switch (frame.block_mode) {
-            case Constants.SBC_BLK_4:
-                frame.blocks = 4;
-                break;
-            case Constants.SBC_BLK_8:
-                frame.blocks = 8;
-                break;
-            case Constants.SBC_BLK_12:
-                frame.blocks = 12;
-                break;
-            case Constants.SBC_BLK_16:
-                frame.blocks = 16;
-                break;
+            switch (frame.block_mode) 
+            {
+                case Constants.SBC_BLK_4:
+                    frame.blocks = 4;
+                    break;
+                case Constants.SBC_BLK_8:
+                    frame.blocks = 8;
+                    break;
+                case Constants.SBC_BLK_12:
+                    frame.blocks = 12;
+                    break;
+                case Constants.SBC_BLK_16:
+                    frame.blocks = 16;
+                    break;
             }
 
-            System.Diagnostics.Debug.WriteLine("1");
-
             frame.mode = (Channels)((data[1] >> 2) & 0x03); //可能存在问题
-            switch (frame.mode) {
-            case Channels.MONO:
-                frame.channels = 1;
-                break;
-            case Channels.DUAL_CHANNEL:	/* fall-through */
-            case Channels.STEREO:
-            case Channels.JOINT_STEREO:
-                frame.channels = 2;
-                break;
+            switch (frame.mode) 
+            {
+                case Channels.MONO:
+                    frame.channels = 1;
+                    break;
+                case Channels.DUAL_CHANNEL:	/* fall-through */
+                case Channels.STEREO:
+                case Channels.JOINT_STEREO:
+                    frame.channels = 2;
+                    break;
             }
 
             frame.allocation = (Allocate)((data[1] >> 1) & 0x01);
-
             frame.subband_mode = (byte)(data[1] & 0x01);
             frame.subbands = (byte)(frame.subband_mode == Constants.SBC_SB_8 ? 8 : 4);
 
@@ -251,9 +244,7 @@ namespace INGdemo.Lib
             if (data[3] != exp.sbc_crc8(crc_header, crc_pos))
                 return -3;
 
-            System.Diagnostics.Debug.WriteLine("sbc_calculate_bits begin!");
             sbc_calculate_bits(frame, bits);
-            System.Diagnostics.Debug.WriteLine("sbc_calculate_bits end!");
 
             for (ch = 0; ch < frame.channels; ch++) {
                 for (sb = 0; sb < frame.subbands; sb++)
@@ -301,7 +292,6 @@ namespace INGdemo.Lib
 
             if ((consumed & 0x7) != 0)
                 consumed += 8 - (consumed & 0x7);
-            System.Diagnostics.Debug.WriteLine("return!");
             return consumed >> 3;            
             
         
@@ -309,7 +299,6 @@ namespace INGdemo.Lib
 
         void sbc_calculate_bits(sbc_frame frame, int[,] bits)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_calculate_bits()!");
             if (frame.subbands == 4)
                 sbc_calculate_bits_internal(frame, bits, 4);
             else
@@ -318,7 +307,6 @@ namespace INGdemo.Lib
 
         void sbc_calculate_bits_internal(sbc_frame frame, int[,] bits,int subbands)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_calculate_bits_internal()!");
             byte sf = frame.frequency;
 
             if (frame.mode == Channels.MONO || frame.mode == Channels.DUAL_CHANNEL) {
@@ -514,11 +502,9 @@ namespace INGdemo.Lib
         
         ushort sbc_get_dec_codesize(sbc_struct sbc)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_get_dec_codesize()!");
             int ret;
             byte subbands, channels, blocks, joint, bitpool;
  
-            //若完成初始化，则相关的参数都存在sbc.priv.frame对应的结构体中
             if (sbc.priv.init && sbc.priv.frame.bitpool == sbc.bitpool)
                 return sbc.priv.frame.codesize;
 
@@ -543,7 +529,6 @@ namespace INGdemo.Lib
 
         ushort sbc_get_dec_frame_length(sbc_struct sbc)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_get_dec_frame_length()!");
             ushort subbands, channels, blocks;
             if (!sbc.priv.init) {
                 subbands = (ushort)(sbc.subbands == Constants.SBC_SB_8 ? 8 : 4);
@@ -561,7 +546,6 @@ namespace INGdemo.Lib
 
         int sbc_synthesize_audio(sbc_decoder_state state, sbc_frame frame)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_synthesize_audio()!");
             int ch, blk;
 
             switch (sbc.priv.frame.subbands) {
@@ -586,7 +570,6 @@ namespace INGdemo.Lib
 
         void sbc_synthesize_four(sbc_decoder_state state, sbc_frame frame, int ch, int blk)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_decode()!");
             int i, k, idx;
 
             //获取单通道的V值
@@ -646,7 +629,6 @@ namespace INGdemo.Lib
 
         void sbc_synthesize_eight(sbc_decoder_state state, sbc_frame frame, int ch, int blk)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_synthesize_eight()!");
             int i, j, k, idx;
             int[] offset = new int[state.offset.Rank];
             for(i = 0; i < state.offset.Rank; i++)
@@ -805,7 +787,6 @@ namespace INGdemo.Lib
         public void Decode(byte data)
         {
             inputStream[Readindex++] = data;
-            // System.Diagnostics.Debug.WriteLine("data[0] = {0}",data);
             if  (Readindex >= inputSize)
             {
                 Readindex = 0;
@@ -819,11 +800,8 @@ namespace INGdemo.Lib
             }         
         }
 
-        //与ADPCM解码不同
-        //数据需要达到一定长度之后才能进行解码
         public void Decode(byte[] data)
-        {
-            
+        {   
             foreach(var x in data) Decode(x);
         }
      
