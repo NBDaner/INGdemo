@@ -628,8 +628,6 @@ namespace INGdemo.Models
             else if (DecoderSbc != null && AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_SBC)
             {
                 System.Diagnostics.Debug.WriteLine("DecoderSbc");
-        
-                System.Diagnostics.Debug.WriteLine("e.Characteristic.Value[0] = {0}  LENGTH={1}",e.Characteristic.Value[0],e.Characteristic.Value.Length);
                 DecoderSbc.Decode(e.Characteristic.Value);
             }           
 
@@ -650,6 +648,7 @@ namespace INGdemo.Models
 
         private void Decoder_PCMOutput(object sender, short[] e)
         {
+            System.Diagnostics.Debug.WriteLine("Decoder_PCMOutput");
             PlayerWrite(e);
             AllSamples.AddRange(e);
         }
