@@ -34,7 +34,7 @@ namespace INGdemo.Lib
             Reset();
         }
 
-        public event EventHandler<short[]> SBCOutput;
+        public event EventHandler<Int16 []> SBCOutput;
 
         public void Reset()
         {
@@ -55,7 +55,6 @@ namespace INGdemo.Lib
         }
         int sbc_decode(byte[] data, int input_len, short[] output, int output_len, int written)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_decode()!");
             int i, ch, codesize, samples;
             codesize = sbc_unpack_frame(data, sbc.priv.frame, input_len);
 
@@ -789,6 +788,7 @@ namespace INGdemo.Lib
             inputStream[Readindex++] = data;
             if  (Readindex >= inputSize)
             {
+                System.Diagnostics.Debug.WriteLine("WriteIndex{0}",WriteIndex);
                 Readindex = 0;
                 WriteIndex +=sbc_decode(inputStream, inputSize, 
                                             outputStream, outputSize, decoded);
