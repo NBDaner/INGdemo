@@ -37,6 +37,7 @@ namespace INGdemo.UWP.Lib
 
         private async Task CreateAudioGraph(uint samplingRate)
         {
+            System.Diagnostics.Debug.WriteLine("Begin to Create Graph..."); 
             // Create an AudioGraph with default settings
             var encoding = MediaEncodingProfile.CreateWav(AudioEncodingQuality.Auto);
             encoding.Audio = AudioEncodingProperties.CreatePcm(samplingRate, 1, 16);
@@ -71,6 +72,7 @@ namespace INGdemo.UWP.Lib
 
             // Start the graph since we will only start/stop the frame input node
             graph.Start();
+            System.Diagnostics.Debug.WriteLine("Graph Created Successfully."); 
         }
 
         private void FrameInputNode_AudioFrameCompleted(AudioFrameInputNode sender, AudioFrameCompletedEventArgs args)
@@ -153,6 +155,7 @@ namespace INGdemo.UWP.Lib
 
         private async Task CreateAudioGraph(uint samplingRate)
         {
+            System.Diagnostics.Debug.WriteLine("Begin to Create Graph1..."); 
             // Create an AudioGraph with default settings
             var encoding = MediaEncodingProfile.CreateWav(AudioEncodingQuality.Auto);
             encoding.Audio = AudioEncodingProperties.CreatePcm(samplingRate, 1, 16);
@@ -187,6 +190,7 @@ namespace INGdemo.UWP.Lib
 
             // Start the graph since we will only start/stop the frame input node
             graph.Start();
+            System.Diagnostics.Debug.WriteLine("Graph Created Successfully."); 
         }
 
         private void FrameInputNode_AudioFrameCompleted(AudioFrameInputNode sender, AudioFrameCompletedEventArgs args)

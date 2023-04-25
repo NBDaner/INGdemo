@@ -53,11 +53,6 @@ namespace INGdemo.Lib
 
     public class exp
     {
-        static public int CI(uint i)
-        {
-            return Convert.ToInt32(i);
-        }
-
         static public int SS4(int i)
         {
             return i >> Constants.SCALE_SPROTO4_TBL;
