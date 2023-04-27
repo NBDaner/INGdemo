@@ -106,13 +106,13 @@ namespace INGdemo.Lib
                 for (ch = 0; ch < sbc.priv.frame.channels; ch++) {
                     short s;
                     s = sbc.priv.frame.pcm_sample[ch,i];
-                    int index = (i * sbc.priv.frame.channels + ch) * 2;
+                    int index = i * sbc.priv.frame.channels + ch;
 
-                    if (sbc.endian == Constants.SBC_LE) {
-                        output[index] = s;
-                    } else {
-                        output[index] = (short)(((s >> 8) & 0xff) | (s << 8));
-                    }
+                    // if (sbc.endian == Constants.SBC_LE) {
+                        // output[index] = s;
+                    // } else {
+                        output[index] = (short)(((s & 0xff00) >> 8) | ((s & 0x00ff) << 8));
+                    // }
                 }
             }
      
@@ -232,6 +232,7 @@ namespace INGdemo.Lib
             if (len * 8 < (byte)(consumed + (4 * frame.subbands * frame.channels)))
                 return -1;
 
+            System.Diagnostics.Debug.WriteLine("[scale_factor]");
             for (ch = 0; ch < frame.channels; ch++) {
                 for (sb = 0; sb < frame.subbands; sb++) {
                     /* FIXME assert(consumed % 4 == 0); */
@@ -239,23 +240,27 @@ namespace INGdemo.Lib
                         (uint)(data[consumed >> 3] >> (4 - (consumed & 0x7))) & 0x0F;
                     crc_header[crc_pos >> 3] |=(byte)(
                         frame.scale_factor[ch,sb] << (4 - (crc_pos & (0x7))));
-
+                    System.Diagnostics.Debug.WriteLine(frame.scale_factor[ch,sb]);
                     consumed += 4;
                     crc_pos += 4;
                 }
             }
-            System.Diagnostics.Debug.WriteLine("data[3] ="+data[3]+"  crc_pos="+crc_pos+"  sbc_crc8 begin.");
-            System.Diagnostics.Debug.WriteLine(crc_header[0]+" "+crc_header[1]+" "+crc_header[2]+" "+crc_header[3]+" "+crc_header[4]+" "+crc_header[5]+" "+crc_header[6]+" "+crc_header[7]+" "+crc_header[8]+" "+crc_header[9]+" "+crc_header[10]);
+           
             if (data[3] != exp.sbc_crc8(crc_header, crc_pos))
                 return -3;
-            System.Diagnostics.Debug.WriteLine("sbc_crc8 end.");
+
             sbc_calculate_bits(frame, bits);
-
-            System.Diagnostics.Debug.WriteLine("frame.allocation ="+frame.allocation);
-
+            System.Diagnostics.Debug.WriteLine("[----bits----]");
+            for (ch = 0; ch < frame.channels; ch++) {
+                for (sb = 0; sb < frame.subbands; sb++)
+                    System.Diagnostics.Debug.WriteLine(bits[ch,sb]);
+            }
+            
+            System.Diagnostics.Debug.WriteLine("[---levels---]");
             for (ch = 0; ch < frame.channels; ch++) {
                 for (sb = 0; sb < frame.subbands; sb++)
                     levels[ch,sb] = (uint)((1 << bits[ch,sb]) - 1);
+                    System.Diagnostics.Debug.WriteLine(levels[ch,sb]);
             }
 
             for (blk = 0; blk < frame.blocks; blk++) {
@@ -618,7 +623,7 @@ namespace INGdemo.Lib
                 //括号内的结果最终右移15位（>>15）
                 //角标计算方法
                 //frame.pcm_sample[ch,blk * 4 + i] = sbc_clip16(SCALE4_STAGED1(
-                frame.pcm_sample[ch,blk * 4 + i] = (short)exp.SCALE4_STAGED2(
+                frame.pcm_sample[ch,blk * 4 + i] = exp.sbc_clip16(exp.SCALE4_STAGED1(
                     exp.MULA(v[offset[i] + 0], SBCProtcol.sbc_proto_4_40m0[idx + 0],//每两个为一组
                     exp.MULA(v[offset[k] + 1], SBCProtcol.sbc_proto_4_40m1[idx + 0],//
                     exp.MULA(v[offset[i] + 2], SBCProtcol.sbc_proto_4_40m0[idx + 1],
@@ -628,7 +633,7 @@ namespace INGdemo.Lib
                     exp.MULA(v[offset[i] + 6], SBCProtcol.sbc_proto_4_40m0[idx + 3],
                     exp.MULA(v[offset[k] + 7], SBCProtcol.sbc_proto_4_40m1[idx + 3],
                     exp.MULA(v[offset[i] + 8], SBCProtcol.sbc_proto_4_40m0[idx + 4],
-                    exp.MUL( v[offset[k] + 9], SBCProtcol.sbc_proto_4_40m1[idx + 4])))))))))));
+                    exp.MUL( v[offset[k] + 9], SBCProtcol.sbc_proto_4_40m1[idx + 4]))))))))))));
             }
         }
 
@@ -785,12 +790,15 @@ namespace INGdemo.Lib
                 // System.Diagnostics.Debug.WriteLine("WriteIndex{0}",WriteIndex);
                 Readindex = 0;
                 // WriteIndex +=
-                sbc_decode(inputStream, inputSize, 
-                                            outputStream, outputSize, decoded);
+                sbc_decode(inputStream, inputSize, outputStream, outputSize, decoded);
 
-                //解码完成之后打印一下译码序列
+                System.Diagnostics.Debug.WriteLine("before Invoke");
+                // for(int l=0; l<outputStream.GetLength(0)/8; l++)
+                // {
+                //         System.Diagnostics.Debug.WriteLine(outputStream[l]+" "+outputStream[l+1]+" "+outputStream[l+2]+" "+outputStream[l+3]+" "+outputStream[l+4]+" "+outputStream[l+5]+" "+outputStream[l+6]+" "+outputStream[l+7]);
+                // }
+
                 SBCOutput.Invoke(this,outputStream);
-                // WriteIndex = 0;
             }         
         }
 

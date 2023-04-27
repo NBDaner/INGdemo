@@ -648,11 +648,6 @@ namespace INGdemo.Models
 
         private void Decoder_PCMOutput(object sender, short[] e)
         {
-            System.Diagnostics.Debug.WriteLine("Decoder_PCMOutput");
-            for(int l=0; l<e.GetLength(0)/8; l++)
-            {
-                System.Diagnostics.Debug.WriteLine(e[l]+" "+e[l+1]+" "+e[l+2]+" "+e[l+3]+" "+e[l+4]+" "+e[l+5]+" "+e[l+6]+" "+e[l+7]);
-            }
             PlayerWrite(e);
             AllSamples.AddRange(e);
         }
