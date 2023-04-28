@@ -21,8 +21,10 @@ namespace INGdemo.Lib
         private int outputSize = 128;
         private int Readindex;
         private int WriteIndex;
+        private int dataIndex;
         private byte[] inputStream;
         private short[] outputStream;
+        private short[] outputStream1;
         private int inp = 0;  //解码器输入数组位置指示器,初始化为0
         private int outp = 0;
         private int decoded;
@@ -40,8 +42,10 @@ namespace INGdemo.Lib
         {
             inputStream = new byte[inputSize];
             outputStream = new short[outputSize];
+            outputStream1 = new short[outputSize];
             Readindex = 0;
             WriteIndex = 0;
+            dataIndex = 0;
 
             //Structure object initialization
             sbc.priv.frame.scale_factor = new uint[2,8];
@@ -57,10 +61,10 @@ namespace INGdemo.Lib
         int sbc_decode(byte[] data, int input_len, short[] output, int output_len, int written)
         {
             int i, ch, codesize, samples;
-            for(i=0; i<input_len; i++)
-            {
-                System.Diagnostics.Debug.WriteLine(data[i]);
-            }
+            // for(i=0; i<input_len; i++)
+            // {
+            //     System.Diagnostics.Debug.WriteLine(data[i]);
+            // }
 
             codesize = sbc_unpack_frame(data, ref sbc.priv.frame, input_len);
 
@@ -79,8 +83,6 @@ namespace INGdemo.Lib
 
                 sbc.priv.frame.codesize = sbc_get_dec_codesize(sbc);
                 sbc.priv.frame.length = sbc_get_dec_frame_length(sbc);
-
-                sbc.priv.frame.frame_count = 1;
                 sbc.priv.init = true;
 
             } else if (sbc.priv.frame.bitpool != sbc.bitpool) {
@@ -109,9 +111,9 @@ namespace INGdemo.Lib
                     int index = i * sbc.priv.frame.channels + ch;
 
                     // if (sbc.endian == Constants.SBC_LE) {
-                        // output[index] = s;
+                        output[index] = s;
                     // } else {
-                        output[index] = (short)(((s & 0xff00) >> 8) | ((s & 0x00ff) << 8));
+                        // output[index] = (short)(((s & 0xff00) >> 8) | ((s & 0x00ff) << 8));
                     // }
                 }
             }
@@ -129,7 +131,7 @@ namespace INGdemo.Lib
             System.Diagnostics.Debug.WriteLine("sbc_decoder_init()!");
             int i, ch;
             //set 0 for all elements of V[,]
-            //数组V初始化全0
+            Array.Clear(state.V,0,state.V.Length);
             //set subbands
             state.subbands = frame.subbands;
 
@@ -177,7 +179,6 @@ namespace INGdemo.Lib
                     break;
             }
 
-            System.Diagnostics.Debug.WriteLine("DATA[1]="+data[1]);
             frame.mode = (Channels)((data[1] >> 2) & 0x03); //可能存在问题
             switch (frame.mode) 
             {
@@ -259,8 +260,10 @@ namespace INGdemo.Lib
             System.Diagnostics.Debug.WriteLine("[---levels---]");
             for (ch = 0; ch < frame.channels; ch++) {
                 for (sb = 0; sb < frame.subbands; sb++)
+                {
                     levels[ch,sb] = (uint)((1 << bits[ch,sb]) - 1);
                     System.Diagnostics.Debug.WriteLine(levels[ch,sb]);
+                }
             }
 
             for (blk = 0; blk < frame.blocks; blk++) {
@@ -587,23 +590,26 @@ namespace INGdemo.Lib
             int[] v = new int[v_size];
             for(i = 0; i < v_size; i++)
                 v[i] = state.V[ch,i];
+            // Array.Copy(state.V, ch*v_size, v, 0, v_size);
+
 
             //获取单通道的offset值
             int[] offset = new int[offset_size];
             for(i = 0; i < offset_size; i++)
                 offset[i] = state.offset[ch,i];  
+            // Array.Copy(state.offset, ch*offset_size, offset, 0, offset_size);
 
             //Matrixing
             //for k=0 to 7 do
             // for i=0 to 3 do 
-            for (i = 0; i < 8; i++) {
+            for(i = 0; i < 8; i++)
+            {
                 /* Shifting */
                 offset[i]--;
-                if (offset[i] < 0) {
+                if(offset[i] < 0)
+                {
                     offset[i] = 79;
-                    //memcpy(v + 80, v, 9 * sizeof(*v));
-                    for(int j = 0; j < 9; j++)
-                        v[80 + j] = v[j];
+                    Array.Copy(v, 0, v, 80, 9);
                 }
 
                 /* Distribute the new matrix value to the shifted position */
@@ -616,13 +622,11 @@ namespace INGdemo.Lib
             }
 
             /* Compute the samples */
-            for (idx = 0, i = 0; i < 4; i++, idx += 5) {
+            for(idx = 0, i = 0; i < 4; i++, idx += 5)
+            {
                 k = (i + 4) & 0xf;
 
                 /* Store in output, Q0 */
-                //括号内的结果最终右移15位（>>15）
-                //角标计算方法
-                //frame.pcm_sample[ch,blk * 4 + i] = sbc_clip16(SCALE4_STAGED1(
                 frame.pcm_sample[ch,blk * 4 + i] = exp.sbc_clip16(exp.SCALE4_STAGED1(
                     exp.MULA(v[offset[i] + 0], SBCProtcol.sbc_proto_4_40m0[idx + 0],//每两个为一组
                     exp.MULA(v[offset[k] + 1], SBCProtcol.sbc_proto_4_40m1[idx + 0],//
@@ -789,14 +793,23 @@ namespace INGdemo.Lib
             {
                 // System.Diagnostics.Debug.WriteLine("WriteIndex{0}",WriteIndex);
                 Readindex = 0;
-                // WriteIndex +=
+
                 sbc_decode(inputStream, inputSize, outputStream, outputSize, decoded);
+                // Array.Copy(SbcData.test,dataIndex,outputStream1,0,outputSize);
+                // dataIndex += outputSize;
 
                 System.Diagnostics.Debug.WriteLine("before Invoke");
-                // for(int l=0; l<outputStream.GetLength(0)/8; l++)
-                // {
-                //         System.Diagnostics.Debug.WriteLine(outputStream[l]+" "+outputStream[l+1]+" "+outputStream[l+2]+" "+outputStream[l+3]+" "+outputStream[l+4]+" "+outputStream[l+5]+" "+outputStream[l+6]+" "+outputStream[l+7]);
-                // }
+                for(int l=0; l<outputStream.GetLength(0)/8; l++)
+                {
+                        System.Diagnostics.Debug.WriteLine( outputStream[l] + " "+
+                                                            outputStream[l+1]+" "+
+                                                            outputStream[l+2]+" "+
+                                                            outputStream[l+3]+" "+
+                                                            outputStream[l+4]+" "+
+                                                            outputStream[l+5]+" "+
+                                                            outputStream[l+6]+" "+
+                                                            outputStream[l+7]);
+                }
 
                 SBCOutput.Invoke(this,outputStream);
             }         
