@@ -599,9 +599,13 @@ namespace INGdemo.Lib
                 offset[i] = state.offset[ch,i];  
             // Array.Copy(state.offset, ch*offset_size, offset, 0, offset_size);
 
-            //Matrixing
-            //for k=0 to 7 do
-            // for i=0 to 3 do 
+            /* -Matrixing-
+                for k=0 to 7 do
+                    for i=0 to 3 do 
+                        V[k] = sum(N[k][i]*S[i])
+                
+                N[k][i] = cos[(i+0.5)*(k+2)*pi/2]
+            */
             for(i = 0; i < 8; i++)
             {
                 /* Shifting */
