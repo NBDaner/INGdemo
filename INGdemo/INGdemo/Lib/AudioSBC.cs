@@ -17,7 +17,7 @@ namespace INGdemo.Lib
     public class SBCDecoder
     {
         //Queue<byte> inputStream = new Queue<byte>();  //初始化输入队列
-        private int inputSize = 24;
+        private int inputSize = 70;
         private int outputSize = 128;
         private int Readindex;
         private int WriteIndex;
@@ -61,10 +61,12 @@ namespace INGdemo.Lib
         int sbc_decode(byte[] data, int input_len, short[] output, int output_len, int written)
         {
             int i, ch, codesize, samples;
-            // for(i=0; i<input_len; i++)
-            // {
-            //     System.Diagnostics.Debug.WriteLine(data[i]);
-            // }
+            System.Diagnostics.Debug.Write("\n\n");
+            for(i=0; i<input_len; i++)
+            {
+                System.Diagnostics.Debug.Write("["+data[i].ToString("x")+"]");
+            }
+            System.Diagnostics.Debug.Write("\n");
 
             codesize = sbc_unpack_frame(data, ref sbc.priv.frame, input_len);
 
@@ -110,11 +112,11 @@ namespace INGdemo.Lib
                     s = sbc.priv.frame.pcm_sample[ch,i];
                     int index = i * sbc.priv.frame.channels + ch;
 
-                    // if (sbc.endian == Constants.SBC_LE) {
+                    if (sbc.endian == Constants.SBC_LE) {
                         output[index] = s;
-                    // } else {
-                        // output[index] = (short)(((s & 0xff00) >> 8) | ((s & 0x00ff) << 8));
-                    // }
+                    } else {
+                        output[index] = (short)(((s & 0xff00) >> 8) | ((s & 0x00ff) << 8));
+                    }
                 }
             }
      
@@ -128,7 +130,6 @@ namespace INGdemo.Lib
 
         void sbc_decoder_init(ref sbc_decoder_state state, sbc_frame frame)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_decoder_init()!");
             int i, ch;
             //set 0 for all elements of V[,]
             Array.Clear(state.V,0,state.V.Length);
@@ -233,41 +234,53 @@ namespace INGdemo.Lib
             if (len * 8 < (byte)(consumed + (4 * frame.subbands * frame.channels)))
                 return -1;
 
-            System.Diagnostics.Debug.WriteLine("[scale_factor]");
+            System.Diagnostics.Debug.Write("scale_factor={");
             for (ch = 0; ch < frame.channels; ch++) {
+                System.Diagnostics.Debug.Write("(");
                 for (sb = 0; sb < frame.subbands; sb++) {
                     /* FIXME assert(consumed % 4 == 0); */
                     frame.scale_factor[ch,sb] =
                         (uint)(data[consumed >> 3] >> (4 - (consumed & 0x7))) & 0x0F;
                     crc_header[crc_pos >> 3] |=(byte)(
                         frame.scale_factor[ch,sb] << (4 - (crc_pos & (0x7))));
-                    System.Diagnostics.Debug.WriteLine(frame.scale_factor[ch,sb]);
+                    System.Diagnostics.Debug.Write(frame.scale_factor[ch,sb]+",");
                     consumed += 4;
                     crc_pos += 4;
                 }
+                System.Diagnostics.Debug.Write(")");
             }
+            System.Diagnostics.Debug.Write("}  ");
            
             if (data[3] != exp.sbc_crc8(crc_header, crc_pos))
                 return -3;
 
             sbc_calculate_bits(frame, bits);
-            System.Diagnostics.Debug.WriteLine("[----bits----]");
+            System.Diagnostics.Debug.Write("bits={");
             for (ch = 0; ch < frame.channels; ch++) {
+                System.Diagnostics.Debug.Write("(");
                 for (sb = 0; sb < frame.subbands; sb++)
-                    System.Diagnostics.Debug.WriteLine(bits[ch,sb]);
+                    System.Diagnostics.Debug.Write(bits[ch,sb]+",");
+                System.Diagnostics.Debug.Write(")");
             }
+            System.Diagnostics.Debug.Write("}  ");
             
-            System.Diagnostics.Debug.WriteLine("[---levels---]");
+            System.Diagnostics.Debug.Write("levels={");
             for (ch = 0; ch < frame.channels; ch++) {
+                System.Diagnostics.Debug.Write("(");
                 for (sb = 0; sb < frame.subbands; sb++)
                 {
                     levels[ch,sb] = (uint)((1 << bits[ch,sb]) - 1);
-                    System.Diagnostics.Debug.WriteLine(levels[ch,sb]);
+                    System.Diagnostics.Debug.Write(levels[ch,sb]+",");
                 }
+                System.Diagnostics.Debug.Write(")");
             }
+            System.Diagnostics.Debug.Write("}\n");
 
+            System.Diagnostics.Debug.WriteLine("audio_sample/frame.sb_sample");
             for (blk = 0; blk < frame.blocks; blk++) {
+                System.Diagnostics.Debug.Write("{");
                 for (ch = 0; ch < frame.channels; ch++) {
+                    System.Diagnostics.Debug.Write("(");
                     for (sb = 0; sb < frame.subbands; sb++) {
                         if (levels[ch,sb] > 0) {
                             audio_sample = 0;
@@ -284,10 +297,16 @@ namespace INGdemo.Lib
                             frame.sb_sample[blk,ch,sb] =
                                 (int)((((audio_sample << 1) | 1) << ((int)frame.scale_factor[ch,sb] + 1)) /
                                 levels[ch,sb] - (1 << (int)(frame.scale_factor[ch,sb] + 1)));
+                            // frame.sb_sample[blk,ch,sb] = 
+                            //     (int)(((((audio_sample << 1) | 1) << (1 + (int)frame.scale_factor[ch,sb])) + (levels[ch,sb] >> 1)) / 
+                            //     levels[ch,sb] - (1 << (1 + (int)frame.scale_factor[ch,sb])));
+                            System.Diagnostics.Debug.Write(audio_sample.ToString("x")+"/"+frame.sb_sample[blk,ch,sb].ToString("x")+",");
                         } else
                             frame.sb_sample[blk,ch,sb] = 0;
                     }
+                    System.Diagnostics.Debug.Write(") ");
                 }
+                System.Diagnostics.Debug.Write("}\n");
             }
 
             if (frame.mode == Channels.JOINT_STEREO) {
@@ -599,6 +618,7 @@ namespace INGdemo.Lib
                 offset[i] = state.offset[ch,i];  
             // Array.Copy(state.offset, ch*offset_size, offset, 0, offset_size);
 
+            System.Diagnostics.Debug.Write("Input-4{["+frame.sb_sample[blk,ch,0]+"]["+frame.sb_sample[blk,ch,1]+"]["+frame.sb_sample[blk,ch,2]+"]["+frame.sb_sample[blk,ch,3]+"]}");
             /* -Matrixing-
                 for k=0 to 7 do
                     for i=0 to 3 do 
@@ -625,6 +645,8 @@ namespace INGdemo.Lib
                     exp.MUL (SBCProtcol.synmatrix4[i,3], frame.sb_sample[blk,ch,3])))));
             }
 
+            System.Diagnostics.Debug.Write("    Matrixing{["+v[offset[0]]+"]["+v[offset[1]]+"]["+v[offset[2]]+"]["+v[offset[3]]+"]["+v[offset[4]]+"]["+v[offset[5]]+"]["+v[offset[6]]+"]["+v[offset[7]]+"]}");           
+
             /* Compute the samples */
             for(idx = 0, i = 0; i < 4; i++, idx += 5)
             {
@@ -643,6 +665,8 @@ namespace INGdemo.Lib
                     exp.MULA(v[offset[i] + 8], SBCProtcol.sbc_proto_4_40m0[idx + 4],
                     exp.MUL( v[offset[k] + 9], SBCProtcol.sbc_proto_4_40m1[idx + 4]))))))))))));
             }
+
+            System.Diagnostics.Debug.Write("    Output-4{["+frame.pcm_sample[ch,blk * 4 + 0]+"]["+frame.pcm_sample[ch,blk * 4 + 1]+"]["+frame.pcm_sample[ch,blk * 4 + 2]+"]["+frame.pcm_sample[ch,blk * 4 + 3]+"]}\n");            
         }
 
         void sbc_synthesize_eight(ref sbc_decoder_state state, ref sbc_frame frame, int ch, int blk)
@@ -802,18 +826,18 @@ namespace INGdemo.Lib
                 // Array.Copy(SbcData.test,dataIndex,outputStream1,0,outputSize);
                 // dataIndex += outputSize;
 
-                System.Diagnostics.Debug.WriteLine("before Invoke");
-                for(int l=0; l<outputStream.GetLength(0)/8; l++)
-                {
-                        System.Diagnostics.Debug.WriteLine( outputStream[l] + " "+
-                                                            outputStream[l+1]+" "+
-                                                            outputStream[l+2]+" "+
-                                                            outputStream[l+3]+" "+
-                                                            outputStream[l+4]+" "+
-                                                            outputStream[l+5]+" "+
-                                                            outputStream[l+6]+" "+
-                                                            outputStream[l+7]);
-                }
+                // System.Diagnostics.Debug.WriteLine("before Invoke");
+                // for(int l=0; l<outputStream.GetLength(0)/8; l++)
+                // {
+                //         System.Diagnostics.Debug.WriteLine( outputStream[l] + " "+
+                //                                             outputStream[l+1]+" "+
+                //                                             outputStream[l+2]+" "+
+                //                                             outputStream[l+3]+" "+
+                //                                             outputStream[l+4]+" "+
+                //                                             outputStream[l+5]+" "+
+                //                                             outputStream[l+6]+" "+
+                //                                             outputStream[l+7]);
+                // }
 
                 SBCOutput.Invoke(this,outputStream);
             }         
