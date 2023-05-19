@@ -504,11 +504,9 @@ namespace INGdemo.Models
                     System.Diagnostics.Debug.WriteLine("[ERR]:No write function to match.");
                     break;
                 case 1:
-                    System.Diagnostics.Debug.WriteLine("[1]");
                     PlayerAdpcm.Write(samples);
                     break;
                 case 2:
-                    System.Diagnostics.Debug.WriteLine("[2]");
                     PlayerSbc.Write1(samples);
                     break;
                 default:break;

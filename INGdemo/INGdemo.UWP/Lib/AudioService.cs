@@ -143,6 +143,8 @@ namespace INGdemo.UWP.Lib
         private uint SamplingRate;
         private int FrameCompleted;
         private int FrameAdded;
+        private int FrameAddedCnt = 0;
+        private int FrameInputNodeCnt = 0;
 
         // Using the COM interface IMemoryBufferByteAccess allows us to access the underlying byte array in an AudioFrame
         [ComImport]
@@ -223,12 +225,19 @@ namespace INGdemo.UWP.Lib
         
         public bool Write1(Int16[] samples)
         {
-            System.Diagnostics.Debug.WriteLine("Write1"); 
             if ((graph == null)) return true;
             frameInputNode.AddFrame(GenerateAudioData(samples));
             FrameAdded++;
+            FrameAddedCnt++;
+
             if (FrameAdded - FrameCompleted >= 5)
+            {
                 frameInputNode.Start();
+                FrameInputNodeCnt++;
+            }
+
+            System.Diagnostics.Debug.WriteLine("Node/Frame—"+FrameInputNodeCnt+"/"+FrameAddedCnt); 
+
             return true;
         }
 

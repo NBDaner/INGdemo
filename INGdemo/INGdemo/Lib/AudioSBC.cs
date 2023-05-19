@@ -1,3 +1,4 @@
+#define DEBUG_SBC
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -61,12 +62,15 @@ namespace INGdemo.Lib
         int sbc_decode(byte[] data, int input_len, short[] output, int output_len, int written)
         {
             int i, ch, codesize, samples;
+
+        #if (DEBUG_SBC)
             System.Diagnostics.Debug.Write("\n\n");
             for(i=0; i<input_len; i++)
             {
                 System.Diagnostics.Debug.Write("["+data[i].ToString("x")+"]");
             }
             System.Diagnostics.Debug.Write("\n");
+        #endif
 
             codesize = sbc_unpack_frame(data, ref sbc.priv.frame, input_len);
 
@@ -234,27 +238,42 @@ namespace INGdemo.Lib
             if (len * 8 < (byte)(consumed + (4 * frame.subbands * frame.channels)))
                 return -1;
 
-            System.Diagnostics.Debug.Write("scale_factor={");
             for (ch = 0; ch < frame.channels; ch++) {
-                System.Diagnostics.Debug.Write("(");
                 for (sb = 0; sb < frame.subbands; sb++) {
                     /* FIXME assert(consumed % 4 == 0); */
                     frame.scale_factor[ch,sb] =
                         (uint)(data[consumed >> 3] >> (4 - (consumed & 0x7))) & 0x0F;
                     crc_header[crc_pos >> 3] |=(byte)(
                         frame.scale_factor[ch,sb] << (4 - (crc_pos & (0x7))));
-                    System.Diagnostics.Debug.Write(frame.scale_factor[ch,sb]+",");
                     consumed += 4;
                     crc_pos += 4;
                 }
-                System.Diagnostics.Debug.Write(")");
             }
-            System.Diagnostics.Debug.Write("}  ");
            
             if (data[3] != exp.sbc_crc8(crc_header, crc_pos))
                 return -3;
 
             sbc_calculate_bits(frame, bits);
+
+            for (ch = 0; ch < frame.channels; ch++) {
+                for (sb = 0; sb < frame.subbands; sb++)
+                {
+                    levels[ch,sb] = (uint)((1 << bits[ch,sb]) - 1);
+                }
+            }
+
+    /* Macro `DEBUG_SBC` ctrl the debug code */
+    #if (DEBUG_SBC)
+            System.Diagnostics.Debug.Write("scale_factor={");
+            for (ch = 0; ch < frame.channels; ch++) {
+                System.Diagnostics.Debug.Write("(");
+                for (sb = 0; sb < frame.subbands; sb++) {
+                    System.Diagnostics.Debug.Write(frame.scale_factor[ch,sb]+",");
+                }
+                System.Diagnostics.Debug.Write(")");
+            }
+            System.Diagnostics.Debug.Write("}  ");
+
             System.Diagnostics.Debug.Write("bits={");
             for (ch = 0; ch < frame.channels; ch++) {
                 System.Diagnostics.Debug.Write("(");
@@ -263,24 +282,28 @@ namespace INGdemo.Lib
                 System.Diagnostics.Debug.Write(")");
             }
             System.Diagnostics.Debug.Write("}  ");
-            
+
             System.Diagnostics.Debug.Write("levels={");
             for (ch = 0; ch < frame.channels; ch++) {
                 System.Diagnostics.Debug.Write("(");
                 for (sb = 0; sb < frame.subbands; sb++)
-                {
-                    levels[ch,sb] = (uint)((1 << bits[ch,sb]) - 1);
                     System.Diagnostics.Debug.Write(levels[ch,sb]+",");
-                }
                 System.Diagnostics.Debug.Write(")");
             }
-            System.Diagnostics.Debug.Write("}\n");
+            System.Diagnostics.Debug.Write("}\n");            
+    #endif
 
+        #if (DEBUG_SBC)
             System.Diagnostics.Debug.WriteLine("audio_sample/frame.sb_sample");
+        #endif
             for (blk = 0; blk < frame.blocks; blk++) {
+            #if (DEBUG_SBC)
                 System.Diagnostics.Debug.Write("{");
+            #endif
                 for (ch = 0; ch < frame.channels; ch++) {
+                #if (DEBUG_SBC)
                     System.Diagnostics.Debug.Write("(");
+                #endif
                     for (sb = 0; sb < frame.subbands; sb++) {
                         if (levels[ch,sb] > 0) {
                             audio_sample = 0;
@@ -300,13 +323,19 @@ namespace INGdemo.Lib
                             // frame.sb_sample[blk,ch,sb] = 
                             //     (int)(((((audio_sample << 1) | 1) << (1 + (int)frame.scale_factor[ch,sb])) + (levels[ch,sb] >> 1)) / 
                             //     levels[ch,sb] - (1 << (1 + (int)frame.scale_factor[ch,sb])));
+                        #if (DEBUG_SBC)
                             System.Diagnostics.Debug.Write(audio_sample.ToString("x")+"/"+frame.sb_sample[blk,ch,sb].ToString("x")+",");
+                        #endif
                         } else
                             frame.sb_sample[blk,ch,sb] = 0;
                     }
+                #if (DEBUG_SBC)
                     System.Diagnostics.Debug.Write(") ");
+                #endif
                 }
+            #if (DEBUG_SBC)
                 System.Diagnostics.Debug.Write("}\n");
+            #endif
             }
 
             if (frame.mode == Channels.JOINT_STEREO) {
@@ -616,9 +645,7 @@ namespace INGdemo.Lib
             int[] offset = new int[offset_size];
             for(i = 0; i < offset_size; i++)
                 offset[i] = state.offset[ch,i];  
-            // Array.Copy(state.offset, ch*offset_size, offset, 0, offset_size);
-
-            System.Diagnostics.Debug.Write("Input-4{["+frame.sb_sample[blk,ch,0]+"]["+frame.sb_sample[blk,ch,1]+"]["+frame.sb_sample[blk,ch,2]+"]["+frame.sb_sample[blk,ch,3]+"]}");
+     
             /* -Matrixing-
                 for k=0 to 7 do
                     for i=0 to 3 do 
@@ -645,8 +672,6 @@ namespace INGdemo.Lib
                     exp.MUL (SBCProtcol.synmatrix4[i,3], frame.sb_sample[blk,ch,3])))));
             }
 
-            System.Diagnostics.Debug.Write("    Matrixing{["+v[offset[0]]+"]["+v[offset[1]]+"]["+v[offset[2]]+"]["+v[offset[3]]+"]["+v[offset[4]]+"]["+v[offset[5]]+"]["+v[offset[6]]+"]["+v[offset[7]]+"]}");           
-
             /* Compute the samples */
             for(idx = 0, i = 0; i < 4; i++, idx += 5)
             {
@@ -666,7 +691,11 @@ namespace INGdemo.Lib
                     exp.MUL( v[offset[k] + 9], SBCProtcol.sbc_proto_4_40m1[idx + 4]))))))))))));
             }
 
+        #if (DEBUG_SBC)
+            System.Diagnostics.Debug.Write("Input-4{["+frame.sb_sample[blk,ch,0]+"]["+frame.sb_sample[blk,ch,1]+"]["+frame.sb_sample[blk,ch,2]+"]["+frame.sb_sample[blk,ch,3]+"]}");
+            System.Diagnostics.Debug.Write("    Matrixing{["+v[offset[0]]+"]["+v[offset[1]]+"]["+v[offset[2]]+"]["+v[offset[3]]+"]["+v[offset[4]]+"]["+v[offset[5]]+"]["+v[offset[6]]+"]["+v[offset[7]]+"]}");           
             System.Diagnostics.Debug.Write("    Output-4{["+frame.pcm_sample[ch,blk * 4 + 0]+"]["+frame.pcm_sample[ch,blk * 4 + 1]+"]["+frame.pcm_sample[ch,blk * 4 + 2]+"]["+frame.pcm_sample[ch,blk * 4 + 3]+"]}\n");            
+        #endif   
         }
 
         void sbc_synthesize_eight(ref sbc_decoder_state state, ref sbc_frame frame, int ch, int blk)
@@ -825,7 +854,7 @@ namespace INGdemo.Lib
                 sbc_decode(inputStream, inputSize, outputStream, outputSize, decoded);
                 // Array.Copy(SbcData.test,dataIndex,outputStream1,0,outputSize);
                 // dataIndex += outputSize;
-
+            #if (DEBUG_SBC)
                 // System.Diagnostics.Debug.WriteLine("before Invoke");
                 // for(int l=0; l<outputStream.GetLength(0)/8; l++)
                 // {
@@ -838,7 +867,7 @@ namespace INGdemo.Lib
                 //                                             outputStream[l+6]+" "+
                 //                                             outputStream[l+7]);
                 // }
-
+            #endif
                 SBCOutput.Invoke(this,outputStream);
             }         
         }
