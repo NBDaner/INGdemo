@@ -210,6 +210,28 @@ namespace INGdemo.Models
 
         async private void BtnS2MStart_Clicked(object sender, EventArgs e)
         {
+        // #if Method_Await
+            // if (S2MRunning) return;
+
+            // if (charOutput != null)
+            // {
+            //     TptS2MSeries.Points.Clear();
+            //     TptView.Model.ResetAllAxes();
+            //     TptView.Model.InvalidatePlot(true);
+            //     S2MByteCounter = 0;
+            //     S2MRunning = true;
+            //     await charOutput.StartUpdatesAsync();
+
+            //     Device.StartTimer(TimeSpan.FromSeconds(1), () =>
+            //     {
+            //         if (!S2MRunning) return false;
+            //         SaveSpeed(CurS2MTpt, TptS2MSeries, S2MByteCounter * 8.0 / 1000);
+            //         System.Diagnostics.Debug.WriteLine("[TimeSpan]S2MByteCounter = " + S2MByteCounter);
+            //         S2MByteCounter = 0;
+            //         return true; // True = Repeat again, False = Stop the timer
+            //     });
+            // }
+        // #else
             if (S2MRunning) return;
 
             if (charOutput != null)
@@ -219,16 +241,29 @@ namespace INGdemo.Models
                 TptView.Model.InvalidatePlot(true);
                 S2MByteCounter = 0;
                 S2MRunning = true;
-                await charOutput.StartUpdatesAsync();
+
+                try
+                {
+                    await Task.Run(() =>
+                    {
+                        charOutput.StartUpdatesAsync();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error starting updates: {ex.Message}");
+                }
 
                 Device.StartTimer(TimeSpan.FromSeconds(1), () =>
                 {
                     if (!S2MRunning) return false;
                     SaveSpeed(CurS2MTpt, TptS2MSeries, S2MByteCounter * 8.0 / 1000);
+                    System.Diagnostics.Debug.WriteLine("[TimeSpan]S2MByteCounter = " + S2MByteCounter);
                     S2MByteCounter = 0;
                     return true; // True = Repeat again, False = Stop the timer
                 });
             }
+        // #endif
         }
 
         private void BtnStop_Clicked(object sender, EventArgs e)
