@@ -67,7 +67,6 @@ namespace INGdemo.Lib
 
                 sbc.priv.frame.codesize = sbc_get_dec_codesize(sbc);
                 sbc.priv.frame.length = sbc_get_dec_frame_length(sbc);
-                //初始化帧计数
                 sbc.priv.frame.frame_count = 1;
                 sbc.priv.init = true;
 
@@ -76,7 +75,6 @@ namespace INGdemo.Lib
                 sbc.bitpool = sbc.priv.frame.bitpool;
             }            
 
-            //初始话witten
             if(!Convert.IsDBNull(written))
                 written = 0;
 
@@ -89,7 +87,6 @@ namespace INGdemo.Lib
 
             //经过量化解析之后才会送到这个位置
             samples = sbc_synthesize_audio(sbc.priv.dec_state, sbc.priv.frame);
-
 
             if (output_len < samples * sbc.priv.frame.channels * 2)
                 samples = output_len / (sbc.priv.frame.channels * 2);
@@ -110,28 +107,23 @@ namespace INGdemo.Lib
                 }
             }
      
-            //计算
             if(!Convert.IsDBNull(written))
                 written = samples * sbc.priv.frame.channels * 2;
     
-
             return codesize;
         }
-
 
         void sbc_decoder_init(sbc_decoder_state state, sbc_frame frame)
         {
             System.Diagnostics.Debug.WriteLine("sbc_decoder_init()!");
             int i, ch;
             //set 0 for all elements of V[,]
-            //数组V初始化全0
+            state.V = new int[2,170];
             //set subbands
             state.subbands = frame.subbands;
 
-            //一共两个传输通道
             for (ch = 0; ch < 2; ch++)
                 for (i = 0; i < frame.subbands * 2; i++)
-                    //ch_num * subbands_num * 2
                     state.offset[ch,i] = (10 * i + 10);
         }
 

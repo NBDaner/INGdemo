@@ -441,13 +441,10 @@ namespace INGdemo.Models
                 AlgorithmRecognitionSettings.AUDIO_CODEC_MODE = 0;
                 DisplayAlert("Warning", "There is no such algorithm to match!.", "OK");
             }
-
-
         }
         private void SamplingRatePicker_SelectedIndexChanged(object sender, EventArgs e)
         {
             EnginePicker.IsEnabled = int.Parse(SamplingRatePicker.SelectedItem.ToString()) == SpeechRecognitionSettings.SAMPLE_RATE;
-
         }
 
         async private void BtnTalk_Released(object sender, EventArgs e)
@@ -500,7 +497,6 @@ namespace INGdemo.Models
                 default:
                     await DisplayAlert("Warning", "Initialization error!.", "OK");
                     break;
-
             }
 
             Player.Play(samplingRate);
@@ -516,6 +512,7 @@ namespace INGdemo.Models
             if (CurrentGain != gain)
             {
                 CurrentGain = gain;
+                System.Diagnostics.Debug.WriteLine("[INFO] Set Gain Value {0}dB",3 * gain);
                 GainInd.Text = string.Format("{0}dB", 3 * gain);
                 await charCtrl.WriteAsync(new byte[2] { CMD_DIGCMD_DIGITAL_GAIN, (byte)(gain & 0xff) });
             }
@@ -551,17 +548,14 @@ namespace INGdemo.Models
 
         private void CharOutput_ValueUpdated(object sender, Plugin.BLE.Abstractions.EventArgs.CharacteristicUpdatedEventArgs e)
         {
-            System.Diagnostics.Debug.WriteLine("CharOutput_ValueUpdated()!");
             if (Decoder != null && AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_ADPCM)
             {
-                System.Diagnostics.Debug.WriteLine("ADPCM_Decoder");
                 Decoder.Decode(e.Characteristic.Value);
             }
             else if (sbc_Decoder != null && AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_SBC)
             {
                 sbc_Decoder.Decode(e.Characteristic.Value);
             }
-
 
             Device.BeginInvokeOnMainThread(() =>
                 label.Text = Utils.ByteArrayToString(e.Characteristic.Value)
@@ -603,15 +597,19 @@ namespace INGdemo.Models
 
         private void Reset()
         {
+            System.Diagnostics.Debug.WriteLine("[INFO] Initializing audio encoder...");
             AllSamples = new List<short>();
             if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_SBC)
             {
+                System.Diagnostics.Debug.WriteLine("[INFO] Encoder-->[SBC]");
                 sbc_Decoder = new SBCDecoder();
                 Player = DependencyService.Get<IPCMAudio>();
                 sbc_Decoder.SBCOutput += Decoder_SBCOutput;
+
             }
             else if (AlgorithmRecognitionSettings.AUDIO_CODEC_MODE == AlgorithmRecognitionSettings.AUDIO_CODEC_ADPCM)
             {
+                System.Diagnostics.Debug.WriteLine("[INFO] Encoder-->[ADPCM]");
                 Decoder = new ADPCMDecoder(32000 / 10);
                 Player = DependencyService.Get<IPCMAudio>();
                 Decoder.PCMOutput += Decoder_PCMOutput;

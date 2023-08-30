@@ -12,7 +12,6 @@ namespace INGdemo.Lib
         void Stop();
     }
 
-
 //----------------------------------------------------ADPCM编解码----------------------------------------------------------------
     class ADPCMState
     {
@@ -85,7 +84,6 @@ namespace INGdemo.Lib
             Update(sample);
             if (WriteIndex >= Buffer.Length)
             {
-                //数据满帧，将数据传出
                 PCMOutput.Invoke(this, Buffer);
                 WriteIndex = 0;
             }
@@ -160,10 +158,12 @@ namespace INGdemo.Lib
             Update(sample);
             if (WriteIndex >= Buffer.Length)
             {
+                System.Diagnostics.Debug.Write("\n");
                 PCMOutput.Invoke(this, Buffer);
                 WriteIndex = 0;
             }
             Buffer[WriteIndex] = State.predicated;
+            System.Diagnostics.Debug.Write(Buffer[WriteIndex] + " ");
             WriteIndex++;
         }
 
