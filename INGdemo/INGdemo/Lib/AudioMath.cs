@@ -53,29 +53,24 @@ namespace INGdemo.Lib
 
     public class exp
     {
-        static public int CI(uint i)
+        static public int SS4(uint i)
         {
-            return Convert.ToInt32(i);
+            return (int)i >> Constants.SCALE_SPROTO4_TBL;
         }
 
-        static public int SS4(int i)
+        static public int SS8(uint i)
         {
-            return i >> Constants.SCALE_SPROTO4_TBL;
+            return (int)i >> Constants.SCALE_SPROTO8_TBL;
         }
 
-        static public int SS8(int i)
+        static public int SN4(uint i)
         {
-            return i >> Constants.SCALE_SPROTO8_TBL;
+            return  (int)i >> Constants.SCALE_NPROTO4_TBL; 
         }
 
-        static public int SN4(int i)
+        static public int SN8(uint i)
         {
-            return  i >> Constants.SCALE_NPROTO4_TBL; 
-        }
-
-        static public int SN8(int i)
-        {
-            return  i >> Constants.SCALE_NPROTO8_TBL; 
+            return  (int)i >> Constants.SCALE_NPROTO8_TBL; 
         }
 
         static public int MUL(int a, int b)
@@ -125,14 +120,16 @@ namespace INGdemo.Lib
             byte octet;
 
             for (i = 0; i < len / 8; i++)
+            {
                 crc = SbcCRC.crc_table[crc ^ data[i]];
+            }
 
             octet = (byte)((len % 8 == 0) ?  0 : data[i]);
-            for (i = 0; i < len % 8; i++) {
+
+            for (i = 0; i < len % 8; i++)
+            {
                 byte bit = (byte)(((octet ^ crc) & 0x80) >> 7);
-
                 crc = (byte)(((crc & 0x7f) << 1) ^ (bit == 0 ? 0 : 0x1d));
-
                 octet = (byte)(octet << 1);
             }
 
