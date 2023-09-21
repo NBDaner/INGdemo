@@ -158,12 +158,10 @@ namespace INGdemo.Lib
             Update(sample);
             if (WriteIndex >= Buffer.Length)
             {
-                System.Diagnostics.Debug.Write("\n");
                 PCMOutput.Invoke(this, Buffer);
                 WriteIndex = 0;
             }
             Buffer[WriteIndex] = State.predicated;
-            System.Diagnostics.Debug.Write(Buffer[WriteIndex] + " ");
             WriteIndex++;
         }
 

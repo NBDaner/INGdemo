@@ -10,7 +10,7 @@ namespace INGdemo.Lib
     public class SBCDecoder
     {
         //Queue<byte> inputStream = new Queue<byte>();  //初始化输入队列
-        private int inputSize = 24;
+        private int inputSize = 70;
         private int outputSize = 128;
         private int Readindex;
         private int WriteIndex;
@@ -20,7 +20,7 @@ namespace INGdemo.Lib
         private int outp = 0;
         private int decoded;
         private bool dec_lock = true;
-        public static sbc_struct sbc;
+        public sbc_struct sbc;
 
         public SBCDecoder()
         {
@@ -51,6 +51,7 @@ namespace INGdemo.Lib
             System.Diagnostics.Debug.WriteLine("sbc_decode()!");
             int i, ch, codesize, samples;
             codesize = sbc_unpack_frame(data, sbc.priv.frame, input_len);
+            System.Diagnostics.Debug.WriteLine(" " + sbc.priv.frame.frequency+" " + sbc.priv.frame.mode+" " + sbc.priv.frame.subband_mode+" " + sbc.priv.frame.block_mode);
 
             if (!sbc.priv.init)
             {
@@ -85,12 +86,14 @@ namespace INGdemo.Lib
             if (output_len < samples * sbc.priv.frame.channels * 2)
                 samples = output_len / (sbc.priv.frame.channels * 2);
 
+            System.Diagnostics.Debug.Write("s=" + output_len +"-"+sbc.priv.frame.channels);
             for (i = 0; i < samples; i++)
             {
                 for (ch = 0; ch < sbc.priv.frame.channels; ch++)
                 {
                     short s;
                     s = sbc.priv.frame.pcm_sample[ch,i];
+                    System.Diagnostics.Debug.Write(s);
                     int index = (i * sbc.priv.frame.channels + ch) * 2;
 
                     if (sbc.endian == Constants.SBC_LE)
@@ -128,8 +131,7 @@ namespace INGdemo.Lib
 
         }
 
-
-        public int sbc_unpack_frame(byte[] data, sbc_frame frame, int len)
+        public int sbc_unpack_frame(byte[] data,  sbc_frame frame, int len)
         {
             System.Diagnostics.Debug.WriteLine("sbc_unpack_frame()!");
             int consumed;
@@ -181,6 +183,8 @@ namespace INGdemo.Lib
                     frame.channels = 2;
                     break;
             }
+
+            System.Diagnostics.Debug.WriteLine("frame.frequency=" + frame.frequency + "frame.channels="+frame.channels + "frame.blocks="+frame.blocks);
 
             frame.allocation = (Allocate)((data[1] >> 1) & 0x01);
             frame.subband_mode = (byte)(data[1] & 0x01);
@@ -300,7 +304,7 @@ namespace INGdemo.Lib
             return consumed >> 3;            
         }
 
-        void sbc_calculate_bits(sbc_frame frame, int[,] bits)
+        void sbc_calculate_bits( sbc_frame frame, int[,] bits)
         {
             System.Diagnostics.Debug.WriteLine("sbc_calculate_bits()!");
             if (frame.subbands == 4)
@@ -309,7 +313,7 @@ namespace INGdemo.Lib
                 sbc_calculate_bits_internal(frame, bits, 8);
         }
 
-        void sbc_calculate_bits_internal(sbc_frame frame, int[,] bits,int subbands)
+        void sbc_calculate_bits_internal( sbc_frame frame, int[,] bits,int subbands)
         {
             System.Diagnostics.Debug.WriteLine("sbc_calculate_bits_internal()!");
             byte sf = frame.frequency;
@@ -555,7 +559,7 @@ namespace INGdemo.Lib
 
         }
         
-        ushort sbc_get_dec_codesize(sbc_struct sbc)
+        ushort sbc_get_dec_codesize( sbc_struct sbc)
         {
             System.Diagnostics.Debug.WriteLine("sbc_get_dec_codesize()!");
             int ret;
@@ -582,8 +586,7 @@ namespace INGdemo.Lib
             return (ushort)ret;
         }
 
-
-        ushort sbc_get_dec_frame_length(sbc_struct sbc)
+        ushort sbc_get_dec_frame_length( sbc_struct sbc)
         {
             System.Diagnostics.Debug.WriteLine("sbc_get_dec_frame_length()!");
             ushort subbands, channels, blocks;
@@ -605,7 +608,7 @@ namespace INGdemo.Lib
         }
 
 
-        int sbc_synthesize_audio(sbc_decoder_state state, sbc_frame frame)
+        int sbc_synthesize_audio( sbc_decoder_state state,  sbc_frame frame)
         {
             System.Diagnostics.Debug.WriteLine("sbc_synthesize_audio()!");
             int ch, blk;
@@ -637,7 +640,7 @@ namespace INGdemo.Lib
             }
         }
 
-        void sbc_synthesize_four(sbc_decoder_state state, sbc_frame frame, int ch, int blk)
+        void sbc_synthesize_four( sbc_decoder_state state,  sbc_frame frame, int ch, int blk)
         {
             System.Diagnostics.Debug.WriteLine("sbc_decode()!");
             int i, k, idx;
@@ -681,7 +684,7 @@ namespace INGdemo.Lib
                 k = (i + 4) & 0xf;
 
                 /* Store in output, Q0 */
-                frame.pcm_sample[ch,blk * 4 + i] = exp.sbc_clip16(SCALE4_STAGED1(
+                frame.pcm_sample[ch,blk * 4 + i] = exp.sbc_clip16(exp.SCALE4_STAGED1(
                     exp.MULA(v[offset[i] + 0], SBCProtcol.sbc_proto_4_40m0[idx + 0],//每两个为一组
                     exp.MULA(v[offset[k] + 1], SBCProtcol.sbc_proto_4_40m1[idx + 0],//
                     exp.MULA(v[offset[i] + 2], SBCProtcol.sbc_proto_4_40m0[idx + 1],
@@ -695,7 +698,7 @@ namespace INGdemo.Lib
             }
         }
 
-        void sbc_synthesize_eight(sbc_decoder_state state, sbc_frame frame, int ch, int blk)
+        void sbc_synthesize_eight( sbc_decoder_state state,  sbc_frame frame, int ch, int blk)
         {
             System.Diagnostics.Debug.WriteLine("sbc_synthesize_eight()!");
             int i, j, k, idx;
@@ -848,13 +851,15 @@ namespace INGdemo.Lib
             if  (Readindex >= inputSize)
             {
                 Readindex = 0;
-                WriteIndex +=sbc_decode(inputStream, inputSize, 
-                                            outputStream, outputSize, decoded);
-                if(WriteIndex >= 5 * inputSize)
-                {
-                    SBCOutput.Invoke(this,outputStream);
-                    WriteIndex = 0;
-                }
+                sbc_decode(inputStream, inputSize, outputStream, outputSize, decoded);
+                System.Diagnostics.Debug.WriteLine("SBCOutput.Invoke!");
+                SBCOutput.Invoke(this,outputStream);
+
+                // int k;
+                // for (k=0; k < outputSize; k++)
+                // {
+                //     System.Diagnostics.Debug.Write(outputStream[k] + " ");
+                // }
             }         
         }
 

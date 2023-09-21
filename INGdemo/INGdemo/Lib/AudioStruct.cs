@@ -19,7 +19,7 @@ namespace INGdemo.Lib
         SNR		    = Constants.SBC_AM_SNR
     }
 
-    public struct sbc_frame 
+    public class sbc_frame 
     {
         public byte frequency;
         public byte block_mode;
@@ -40,21 +40,21 @@ namespace INGdemo.Lib
         public short[,] pcm_sample; // original pcm audio samples
     }
 
-    public struct sbc_decoder_state
+    public class sbc_decoder_state
     {
         public int subbands;
         public int[,] V;
         public int[,] offset;
     }
 
-    public struct sbc_priv
+    public class sbc_priv
     {
         public bool init;
         public sbc_frame frame;
         public sbc_decoder_state dec_state;
     }
 
-    public struct sbc_struct
+    public class sbc_struct
     {
         public ulong flags;
         public byte frequency;
