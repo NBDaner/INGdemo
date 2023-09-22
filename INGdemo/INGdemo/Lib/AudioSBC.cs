@@ -46,16 +46,16 @@ namespace INGdemo.Lib
             sbc.priv.dec_state.V = new int[2,170];
             sbc.priv.dec_state.offset = new int[2,16];
         }
+
         int sbc_decode(byte[] data, int input_len, byte[] output, int output_len, int written)
         {
-            System.Diagnostics.Debug.WriteLine("sbc_decode()!");
             int i, ch, codesize, samples;
-            codesize = sbc_unpack_frame(data, sbc.priv.frame, input_len);
+            codesize = sbc_unpack_frame(data, ref sbc.priv.frame, input_len);
             System.Diagnostics.Debug.WriteLine(" " + sbc.priv.frame.frequency+" " + sbc.priv.frame.mode+" " + sbc.priv.frame.subband_mode+" " + sbc.priv.frame.block_mode);
 
             if (!sbc.priv.init)
             {
-                sbc_decoder_init(sbc.priv.dec_state, sbc.priv.frame);
+                sbc_decoder_init(ref sbc.priv.dec_state, sbc.priv.frame);
                 sbc.frequency = sbc.priv.frame.frequency;
                 sbc.mode = sbc.priv.frame.mode == Channels.MONO ? Constants.SBC_MODE_MONO :
                                     sbc.priv.frame.mode == Channels.DUAL_CHANNEL ? Constants.SBC_MODE_DUAL_CHANNEL :
@@ -81,7 +81,7 @@ namespace INGdemo.Lib
             if (codesize <= 0)
                 return codesize;
 
-            samples = sbc_synthesize_audio(sbc.priv.dec_state, sbc.priv.frame);
+            samples = sbc_synthesize_audio(ref sbc.priv.dec_state, ref sbc.priv.frame);
 
             if (output_len < samples * sbc.priv.frame.channels * 2)
                 samples = output_len / (sbc.priv.frame.channels * 2);
@@ -115,7 +115,7 @@ namespace INGdemo.Lib
             return codesize;
         }
 
-        void sbc_decoder_init(sbc_decoder_state state, sbc_frame frame)
+        void sbc_decoder_init(ref sbc_decoder_state state, sbc_frame frame)
         {
             System.Diagnostics.Debug.WriteLine("sbc_decoder_init()!");
             int i, ch;
@@ -131,7 +131,7 @@ namespace INGdemo.Lib
 
         }
 
-        public int sbc_unpack_frame(byte[] data,  sbc_frame frame, int len)
+        public int sbc_unpack_frame(byte[] data,  ref sbc_frame frame, int len)
         {
             System.Diagnostics.Debug.WriteLine("sbc_unpack_frame()!");
             int consumed;
@@ -313,7 +313,7 @@ namespace INGdemo.Lib
                 sbc_calculate_bits_internal(frame, bits, 8);
         }
 
-        void sbc_calculate_bits_internal( sbc_frame frame, int[,] bits,int subbands)
+        void sbc_calculate_bits_internal(sbc_frame frame, int[,] bits,int subbands)
         {
             System.Diagnostics.Debug.WriteLine("sbc_calculate_bits_internal()!");
             byte sf = frame.frequency;
@@ -559,7 +559,7 @@ namespace INGdemo.Lib
 
         }
         
-        ushort sbc_get_dec_codesize( sbc_struct sbc)
+        ushort sbc_get_dec_codesize(sbc_struct sbc)
         {
             System.Diagnostics.Debug.WriteLine("sbc_get_dec_codesize()!");
             int ret;
@@ -586,7 +586,7 @@ namespace INGdemo.Lib
             return (ushort)ret;
         }
 
-        ushort sbc_get_dec_frame_length( sbc_struct sbc)
+        ushort sbc_get_dec_frame_length(sbc_struct sbc)
         {
             System.Diagnostics.Debug.WriteLine("sbc_get_dec_frame_length()!");
             ushort subbands, channels, blocks;
@@ -608,7 +608,7 @@ namespace INGdemo.Lib
         }
 
 
-        int sbc_synthesize_audio( sbc_decoder_state state,  sbc_frame frame)
+        int sbc_synthesize_audio(ref sbc_decoder_state state, ref sbc_frame frame)
         {
             System.Diagnostics.Debug.WriteLine("sbc_synthesize_audio()!");
             int ch, blk;
@@ -620,7 +620,7 @@ namespace INGdemo.Lib
                     {
                         for (blk = 0; blk < sbc.priv.frame.blocks; blk++)
                         {
-                            sbc_synthesize_four(state, frame, ch, blk);
+                            sbc_synthesize_four(ref state, ref frame, ch, blk);
                         }
                     }
                     return sbc.priv.frame.blocks * 4;
@@ -630,7 +630,7 @@ namespace INGdemo.Lib
                     {
                         for (blk = 0; blk < sbc.priv.frame.blocks; blk++)
                         {
-                            sbc_synthesize_eight(state, frame, ch, blk);
+                            sbc_synthesize_eight(ref state, ref frame, ch, blk);
                         }
                     }
                     return sbc.priv.frame.blocks * 8;
@@ -640,20 +640,10 @@ namespace INGdemo.Lib
             }
         }
 
-        void sbc_synthesize_four( sbc_decoder_state state,  sbc_frame frame, int ch, int blk)
+        void sbc_synthesize_four(ref sbc_decoder_state state, ref sbc_frame frame, int ch, int blk)
         {
             System.Diagnostics.Debug.WriteLine("sbc_decode()!");
             int i, k, idx;
-
-            //get V of a channel
-            int[] v = new int[state.V.Rank];
-            for(i = 0; i < state.V.Rank; i++)
-                v[i] = state.V[ch,i];
-
-            //get offset of a channel
-            int[] offset = new int[state.offset.Rank];
-            for(i = 0; i < state.offset.Rank; i++)
-                offset[i] = state.offset[ch,i];  
 
             //Matrixing
             //for k=0 to 7 do
@@ -661,17 +651,17 @@ namespace INGdemo.Lib
             for (i = 0; i < 8; i++)
             {
                 /* Shifting */
-                offset[i]--;
-                if (offset[i] < 0)
+                state.offset[ch,i]--;
+                if (state.offset[ch,i] < 0)
                 {
-                    offset[i] = 79;
-                    for(int j = 0; i < 9 * sizeof(int); j++)
-                        v[80 + j] = v[j];
+                    state.offset[ch,i] = 79;
+                    for(int j = 0; j < 9 * 4; j++)
+                        state.V[ch,80 + j] = state.V[ch,j];
                 }
 
                 /* Distribute the new matrix value to the shifted position */
                 //synmatix[k,i] is N[k,i]
-                v[offset[i]] = exp.SCALE4_STAGED1(
+                state.V[ch,state.offset[ch,i]] = exp.SCALE4_STAGED1(
                     exp.MULA(SBCProtcol.synmatrix4[i,0], frame.sb_sample[blk,ch,0],
                     exp.MULA(SBCProtcol.synmatrix4[i,1], frame.sb_sample[blk,ch,1],
                     exp.MULA(SBCProtcol.synmatrix4[i,2], frame.sb_sample[blk,ch,2],
@@ -685,37 +675,33 @@ namespace INGdemo.Lib
 
                 /* Store in output, Q0 */
                 frame.pcm_sample[ch,blk * 4 + i] = exp.sbc_clip16(exp.SCALE4_STAGED1(
-                    exp.MULA(v[offset[i] + 0], SBCProtcol.sbc_proto_4_40m0[idx + 0],//每两个为一组
-                    exp.MULA(v[offset[k] + 1], SBCProtcol.sbc_proto_4_40m1[idx + 0],//
-                    exp.MULA(v[offset[i] + 2], SBCProtcol.sbc_proto_4_40m0[idx + 1],
-                    exp.MULA(v[offset[k] + 3], SBCProtcol.sbc_proto_4_40m1[idx + 1],
-                    exp.MULA(v[offset[i] + 4], SBCProtcol.sbc_proto_4_40m0[idx + 2],
-                    exp.MULA(v[offset[k] + 5], SBCProtcol.sbc_proto_4_40m1[idx + 2],
-                    exp.MULA(v[offset[i] + 6], SBCProtcol.sbc_proto_4_40m0[idx + 3],
-                    exp.MULA(v[offset[k] + 7], SBCProtcol.sbc_proto_4_40m1[idx + 3],
-                    exp.MULA(v[offset[i] + 8], SBCProtcol.sbc_proto_4_40m0[idx + 4],
-                    exp.MUL( v[offset[k] + 9], SBCProtcol.sbc_proto_4_40m1[idx + 4]))))))))))));
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 0], SBCProtcol.sbc_proto_4_40m0[idx + 0],//每两个为一组
+                    exp.MULA(state.V[ch,state.offset[ch,k] + 1], SBCProtcol.sbc_proto_4_40m1[idx + 0],//
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 2], SBCProtcol.sbc_proto_4_40m0[idx + 1],
+                    exp.MULA(state.V[ch,state.offset[ch,k] + 3], SBCProtcol.sbc_proto_4_40m1[idx + 1],
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 4], SBCProtcol.sbc_proto_4_40m0[idx + 2],
+                    exp.MULA(state.V[ch,state.offset[ch,k] + 5], SBCProtcol.sbc_proto_4_40m1[idx + 2],
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 6], SBCProtcol.sbc_proto_4_40m0[idx + 3],
+                    exp.MULA(state.V[ch,state.offset[ch,k] + 7], SBCProtcol.sbc_proto_4_40m1[idx + 3],
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 8], SBCProtcol.sbc_proto_4_40m0[idx + 4],
+                    exp.MUL( state.V[ch,state.offset[ch,k] + 9], SBCProtcol.sbc_proto_4_40m1[idx + 4]))))))))))));
             }
         }
 
-        void sbc_synthesize_eight( sbc_decoder_state state,  sbc_frame frame, int ch, int blk)
+        void sbc_synthesize_eight(ref sbc_decoder_state state, ref sbc_frame frame, int ch, int blk)
         {
             System.Diagnostics.Debug.WriteLine("sbc_synthesize_eight()!");
             int i, j, k, idx;
             int[] x = new int[8];
             int[] s = new int[7];
-            int[] offset = new int[state.offset.Rank];
-
-            for(i = 0; i < state.offset.Rank; i++)
-                offset[i] = state.offset[ch,i];
 
             for (i = 0; i < 16; i++)
             {
                 /* Shifting */
-                offset[i]--;
-                if (offset[i] < 0)
+                state.offset[ch,i]--;
+                if (state.offset[ch,i] < 0)
                 {
-                    offset[i] = 159;
+                    state.offset[ch,i] = 159;
                 }
             }
 
@@ -732,7 +718,7 @@ namespace INGdemo.Lib
             //	 Distribute the new matrix value to the shifted position 
             //	  it is too wast of time
             /*			
-            state.V[ch,offset[i]] = exp.SCALE8_STAGED1(
+            state.V[ch,state.offset[ch,i]] = exp.SCALE8_STAGED1(
                 exp.MULA(SBCProtcol.synmatrix8[i,0], frame.sb_sample[blk,ch,0],
                 exp.MULA(SBCProtcol.synmatrix8[i,1], frame.sb_sample[blk,ch,1],
                 exp.MULA(SBCProtcol.synmatrix8[i,2], frame.sb_sample[blk,ch,2],
@@ -763,62 +749,62 @@ namespace INGdemo.Lib
             s[6] = (x[1] + x[6]) - (x[2] + x[5]);  
             s[7] = (x[0] + x[1]) + (x[2] + x[3]) + (x[4] + x[5]) + (x[6] + x[7]);
 
-            state.V[ch,offset[0]] = exp.SCALE8_STAGED1(exp.MUL(SBCProtcol.synmatrix8[0],s[0]));
+            state.V[ch,state.offset[ch,0]] = exp.SCALE8_STAGED1(exp.MUL(SBCProtcol.synmatrix8[0],s[0]));
 
-            state.V[ch,offset[1]] = exp.SCALE8_STAGED1(exp.MULA(SBCProtcol.synmatrix8[1],s[1],
+            state.V[ch,state.offset[ch,1]] = exp.SCALE8_STAGED1(exp.MULA(SBCProtcol.synmatrix8[1],s[1],
                                                        exp.MULA(-SBCProtcol.synmatrix8[2],s[2],
                                                        exp.MULA(SBCProtcol.synmatrix8[3],s[3],
                                                        exp.MUL(SBCProtcol.synmatrix8[4],s[4]))))); 
 
-            state.V[ch,offset[2]] = exp.SCALE8_STAGED1(exp.MULA(SBCProtcol.synmatrix8[5],s[5],
+            state.V[ch,state.offset[ch,2]] = exp.SCALE8_STAGED1(exp.MULA(SBCProtcol.synmatrix8[5],s[5],
                                                        exp.MUL(-SBCProtcol.synmatrix8[6],s[6])));
 
-            state.V[ch,offset[3]] = exp.SCALE8_STAGED1(exp.MULA(SBCProtcol.synmatrix8[3],s[1],
+            state.V[ch,state.offset[ch,3]] = exp.SCALE8_STAGED1(exp.MULA(SBCProtcol.synmatrix8[3],s[1],
                                                        exp.MULA(-SBCProtcol.synmatrix8[1],s[2],
                                                        exp.MULA(SBCProtcol.synmatrix8[4],s[3],
                                                        exp.MUL(-SBCProtcol.synmatrix8[2],s[4])))));
     
-            state.V[ch,offset[4]] = 0;
+            state.V[ch,state.offset[ch,4]] = 0;
 
-            state.V[ch,offset[5]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[3],s[1],
+            state.V[ch,state.offset[ch,5]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[3],s[1],
                                                        exp.MULA(SBCProtcol.synmatrix8[1],s[2],
                                                        exp.MULA(-SBCProtcol.synmatrix8[4],s[3],
                                                        exp.MUL(SBCProtcol.synmatrix8[2],s[4])))));
 
-            state.V[ch,offset[6]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[5],s[5],
+            state.V[ch,state.offset[ch,6]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[5],s[5],
                                                        exp.MUL(SBCProtcol.synmatrix8[6],s[6])));
             
-            state.V[ch,offset[7]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[1],s[1],
+            state.V[ch,state.offset[ch,7]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[1],s[1],
                                                        exp.MULA(SBCProtcol.synmatrix8[2],s[2],
                                                        exp.MULA(-SBCProtcol.synmatrix8[3],s[3],
                                                        exp.MUL(-SBCProtcol.synmatrix8[4],s[4])))));
 
-            state.V[ch,offset[8]] = exp.SCALE8_STAGED1(exp.MUL(-SBCProtcol.synmatrix8[0],s[0]));
+            state.V[ch,state.offset[ch,8]] = exp.SCALE8_STAGED1(exp.MUL(-SBCProtcol.synmatrix8[0],s[0]));
 
-            state.V[ch,offset[9]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[4],s[1],
+            state.V[ch,state.offset[ch,9]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[4],s[1],
                                                        exp.MULA(SBCProtcol.synmatrix8[3],s[2],
                                                        exp.MULA(SBCProtcol.synmatrix8[2],s[3],
                                                        exp.MUL(SBCProtcol.synmatrix8[1],s[4])))));
 
-            state.V[ch,offset[10]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[6],s[5],
+            state.V[ch,state.offset[ch,10]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[6],s[5],
                                                         exp.MUL(-SBCProtcol.synmatrix8[5],s[6])));
 
-            state.V[ch,offset[11]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[2],s[1],
+            state.V[ch,state.offset[ch,11]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[2],s[1],
                                                         exp.MULA(-SBCProtcol.synmatrix8[4],s[2],
                                                         exp.MULA(-SBCProtcol.synmatrix8[1],s[3],
                                                         exp.MUL(-SBCProtcol.synmatrix8[3],s[4])))));
 
-            state.V[ch,offset[12]] = exp.SCALE8_STAGED1(exp.MUL(SBCProtcol.synmatrix8[7],s[7]));
+            state.V[ch,state.offset[ch,12]] = exp.SCALE8_STAGED1(exp.MUL(SBCProtcol.synmatrix8[7],s[7]));
 
-            state.V[ch,offset[13]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[2],s[1],
+            state.V[ch,state.offset[ch,13]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[2],s[1],
                                                         exp.MULA(-SBCProtcol.synmatrix8[4],s[2],
                                                         exp.MULA(-SBCProtcol.synmatrix8[1],s[3],
                                                         exp.MUL(-SBCProtcol.synmatrix8[3],s[4])))));
 
-            state.V[ch,offset[14]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[6],s[5],
+            state.V[ch,state.offset[ch,14]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[6],s[5],
                                                         exp.MUL(-SBCProtcol.synmatrix8[5],s[6])));
 
-            state.V[ch,offset[15]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[4],s[1],
+            state.V[ch,state.offset[ch,15]] = exp.SCALE8_STAGED1(exp.MULA(-SBCProtcol.synmatrix8[4],s[1],
                                                         exp.MULA(SBCProtcol.synmatrix8[3],s[2],
                                                         exp.MULA(SBCProtcol.synmatrix8[2],s[3],
                                                         exp.MUL(SBCProtcol.synmatrix8[1],s[4])))));
@@ -830,16 +816,16 @@ namespace INGdemo.Lib
 
                 /* Store in output, Q0 */
                 frame.pcm_sample[ch,blk * 8 + i] = exp.sbc_clip16(exp.SCALE8_STAGED1(
-                    exp.MULA(state.V[ch,offset[i] + 0], SBCProtcol.sbc_proto_8_80m0[idx + 0],
-                    exp.MULA(state.V[ch,offset[k] + 1], SBCProtcol.sbc_proto_8_80m1[idx + 0],
-                    exp.MULA(state.V[ch,offset[i] + 2], SBCProtcol.sbc_proto_8_80m0[idx + 1],
-                    exp.MULA(state.V[ch,offset[k] + 3], SBCProtcol.sbc_proto_8_80m1[idx + 1],
-                    exp.MULA(state.V[ch,offset[i] + 4], SBCProtcol.sbc_proto_8_80m0[idx + 2],
-                    exp.MULA(state.V[ch,offset[k] + 5], SBCProtcol.sbc_proto_8_80m1[idx + 2],
-                    exp.MULA(state.V[ch,offset[i] + 6], SBCProtcol.sbc_proto_8_80m0[idx + 3],
-                    exp.MULA(state.V[ch,offset[k] + 7], SBCProtcol.sbc_proto_8_80m1[idx + 3],
-                    exp.MULA(state.V[ch,offset[i] + 8], SBCProtcol.sbc_proto_8_80m0[idx + 4],
-                    exp.MUL( state.V[ch,offset[k] + 9], SBCProtcol.sbc_proto_8_80m1[idx + 4]))))))))))));
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 0], SBCProtcol.sbc_proto_8_80m0[idx + 0],
+                    exp.MULA(state.V[ch,state.offset[ch,k] + 1], SBCProtcol.sbc_proto_8_80m1[idx + 0],
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 2], SBCProtcol.sbc_proto_8_80m0[idx + 1],
+                    exp.MULA(state.V[ch,state.offset[ch,k] + 3], SBCProtcol.sbc_proto_8_80m1[idx + 1],
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 4], SBCProtcol.sbc_proto_8_80m0[idx + 2],
+                    exp.MULA(state.V[ch,state.offset[ch,k] + 5], SBCProtcol.sbc_proto_8_80m1[idx + 2],
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 6], SBCProtcol.sbc_proto_8_80m0[idx + 3],
+                    exp.MULA(state.V[ch,state.offset[ch,k] + 7], SBCProtcol.sbc_proto_8_80m1[idx + 3],
+                    exp.MULA(state.V[ch,state.offset[ch,i] + 8], SBCProtcol.sbc_proto_8_80m0[idx + 4],
+                    exp.MUL( state.V[ch,state.offset[ch,k] + 9], SBCProtcol.sbc_proto_8_80m1[idx + 4]))))))))))));
             }
         }
 
@@ -855,11 +841,11 @@ namespace INGdemo.Lib
                 System.Diagnostics.Debug.WriteLine("SBCOutput.Invoke!");
                 SBCOutput.Invoke(this,outputStream);
 
-                // int k;
-                // for (k=0; k < outputSize; k++)
-                // {
-                //     System.Diagnostics.Debug.Write(outputStream[k] + " ");
-                // }
+                int k;
+                for (k=0; k < outputSize; k++)
+                {
+                    System.Diagnostics.Debug.Write(outputStream[k] + " ");
+                }
             }         
         }
 
