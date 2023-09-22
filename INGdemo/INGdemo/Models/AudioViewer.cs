@@ -577,15 +577,10 @@ namespace INGdemo.Models
             AllSamples.AddRange(e);
         }
 
-        private void Decoder_SBCOutput(object sender, byte[] e)
+        private void Decoder_SBCOutput(object sender, short[] e)
         {
-            short[] se = new short[e.Length];
-            for (int i=0; i<e.Length; i++)
-            {
-                se[i] = (short)(e[i]);
-            }
-            Player.Write(se);
-            AllSamples.AddRange(se);
+            Player.Write(e);
+            AllSamples.AddRange(e);
         }
 
         async protected override void OnDisappearing()

@@ -15,7 +15,7 @@ namespace INGdemo.Lib
         private int Readindex;
         private int WriteIndex;
         private byte[] inputStream;
-        private byte[] outputStream;
+        private short[] outputStream;
         private int inp = 0;  //解码器输入数组位置指示器,初始化为0
         private int outp = 0;
         private int decoded;
@@ -27,12 +27,12 @@ namespace INGdemo.Lib
             Reset();
         }
 
-        public event EventHandler<byte []> SBCOutput;
+        public event EventHandler<short []> SBCOutput;
 
         public void Reset()
         {
             inputStream = new byte[inputSize];
-            outputStream = new byte[outputSize];
+            outputStream = new short[outputSize];
             Readindex = 0;
             WriteIndex = 0;
 
@@ -47,7 +47,7 @@ namespace INGdemo.Lib
             sbc.priv.dec_state.offset = new int[2,16];
         }
 
-        int sbc_decode(byte[] data, int input_len, byte[] output, int output_len, int written)
+        int sbc_decode(byte[] data, int input_len, short[] output, int output_len, int written)
         {
             int i, ch, codesize, samples;
             codesize = sbc_unpack_frame(data, ref sbc.priv.frame, input_len);
@@ -93,19 +93,16 @@ namespace INGdemo.Lib
                 {
                     short s;
                     s = sbc.priv.frame.pcm_sample[ch,i];
-                    System.Diagnostics.Debug.Write(s);
-                    int index = (i * sbc.priv.frame.channels + ch) * 2;
+                    int index = (i * sbc.priv.frame.channels + ch);
 
-                    if (sbc.endian == Constants.SBC_LE)
-                    {
-                        output[index] = (byte)(s & 0x00ff);
-                        output[index+1] = (byte)((s & 0xff00) >> 8);
-                    }
-                    else
-                    {
-                        output[index] = (byte)((s & 0xff00) >> 8);
-                        output[index+1] = (byte)(s & 0x00ff);
-                    }
+                    // if (sbc.endian == Constants.SBC_LE)
+                    // {
+                        output[index] = (short)(((s & 0xff00) >> 8) | ((s & 0x00ff) << 8));
+                    // }
+                    // else
+                    // {
+                        // output[index] = s;
+                    // }
                 }
             }
      
@@ -841,11 +838,11 @@ namespace INGdemo.Lib
                 System.Diagnostics.Debug.WriteLine("SBCOutput.Invoke!");
                 SBCOutput.Invoke(this,outputStream);
 
-                int k;
-                for (k=0; k < outputSize; k++)
-                {
-                    System.Diagnostics.Debug.Write(outputStream[k] + " ");
-                }
+                // int k;
+                // for (k=0; k < outputSize; k++)
+                // {
+                //     System.Diagnostics.Debug.Write(outputStream[k] + " ");
+                // }
             }         
         }
 
